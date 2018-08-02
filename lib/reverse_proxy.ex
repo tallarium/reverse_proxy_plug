@@ -3,6 +3,8 @@ defmodule ReverseProxy do
 
   @behaviour Plug
 
+  @http_client Application.get_env(:reverse_proxy_plug, :http_client)
+
   @spec init(Keyword.t()) :: Keyword.t()
   def init(opts), do: opts
 
@@ -30,7 +32,7 @@ defmodule ReverseProxy do
   def retreive(conn, options) do
     {method, url, body, headers} = prepare_request(conn, options)
 
-    HTTPoison.request(
+    @http_client.request(
       method,
       url,
       body,

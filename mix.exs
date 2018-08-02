@@ -7,9 +7,13 @@ defmodule ReverseProxyPlug.MixProject do
       version: "0.1.0",
       elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      elixirc_paths: elixirc_paths(Mix.env())
     ]
   end
+
+  defp elixirc_paths(:test), do: ["test/support", "lib"]
+  defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help compile.app" to learn about applications.
   def application do
@@ -24,7 +28,8 @@ defmodule ReverseProxyPlug.MixProject do
       {:plug, "~> 1.6"},
       {:cowboy, "~> 2.4"},
       {:httpoison, "~> 1.2"},
-      {:credo, "~> 0.5", only: [:dev, :test]}
+      {:credo, "~> 0.5", only: [:dev, :test]},
+      {:mox, "~> 0.4", only: :test}
     ]
   end
 end
