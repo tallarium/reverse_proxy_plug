@@ -1,5 +1,4 @@
 defmodule ReverseProxy do
-  require Logger
   alias Plug.Conn
 
   @behaviour Plug
@@ -30,7 +29,6 @@ defmodule ReverseProxy do
 
   def retreive(conn, options) do
     {method, url, body, headers} = prepare_request(conn, options)
-    Logger.debug("Proxying to #{url}")
 
     HTTPoison.request(
       method,
@@ -65,7 +63,6 @@ defmodule ReverseProxy do
             stream_response(conn)
 
           {:error, :closed} ->
-            Logger.debug("Client closed before chunk streaming ended")
             conn
         end
 
