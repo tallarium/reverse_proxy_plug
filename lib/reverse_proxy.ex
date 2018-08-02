@@ -117,36 +117,39 @@ defmodule ReverseProxy do
         do: headers,
         else: List.keyreplace(headers, "host", 0, {"host", options[:host]})
 
-    body =
-      case Conn.read_body(conn) do
-        {:ok, body, _conn} ->
-          body
-
-        {:more, body, conn} ->
-          {:stream,
-           Stream.resource(
-             fn -> {body, conn} end,
-             fn
-               {body, conn} ->
-                 {[body], conn}
-
-               nil ->
-                 {:halt, nil}
-
-               conn ->
-                 case Conn.read_body(conn) do
-                   {:ok, body, _conn} ->
-                     {[body], nil}
-
-                   {:more, body, conn} ->
-                     {[body], conn}
-                 end
-             end,
-             fn _ -> nil end
-           )}
-      end
+    body = read_body(conn)
 
     {method, url, body, headers}
+  end
+
+  defp read_body(conn) do
+    case Conn.read_body(conn) do
+      {:ok, body, _conn} ->
+        body
+
+      {:more, body, conn} ->
+        {:stream,
+         Stream.resource(
+           fn -> {body, conn} end,
+           fn
+             {body, conn} ->
+               {[body], conn}
+
+             nil ->
+               {:halt, nil}
+
+             conn ->
+               case Conn.read_body(conn) do
+                 {:ok, body, _conn} ->
+                   {[body], nil}
+
+                 {:more, body, conn} ->
+                   {[body], conn}
+               end
+           end,
+           fn _ -> nil end
+         )}
+    end
   end
 
   @spec put_resp_headers(Conn.t(), [{String.t(), String.t()}]) :: Conn.t()
