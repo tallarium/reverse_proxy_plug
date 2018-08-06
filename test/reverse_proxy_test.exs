@@ -30,8 +30,9 @@ defmodule ReverseProxyTest do
       conn(:get, "/")
       |> ReverseProxy.call(upstream: "example.com")
 
-    assert conn.status == 200
-    assert Enum.member?(conn.resp_headers, {"host", "example.com"})
-    assert conn.resp_body == "Success"
+    assert conn.status == 200, "passes status through"
+    assert Enum.member?(conn.resp_headers, {"host", "example.com"}), "passes headers through"
+
+    assert conn.resp_body == "Success", "passes body through"
   end
 end
