@@ -4,7 +4,7 @@ defmodule ReverseProxyTest do
 
   import Mox
 
-  defp get_responder(status, headers, body, no_chunks \\ 1) do
+  defp get_responder(status \\ 200, headers \\ [], body \\ "Success", no_chunks \\ 1) do
     fn _a, _b, _c, _d, _e ->
       send(self(), %HTTPoison.AsyncStatus{code: status})
       send(self(), %HTTPoison.AsyncHeaders{headers: headers})
@@ -32,7 +32,25 @@ defmodule ReverseProxyTest do
 
     assert conn.status == 200, "passes status through"
     assert Enum.member?(conn.resp_headers, {"host", "example.com"}), "passes headers through"
-
     assert conn.resp_body == "Success", "passes body through"
+  end
+
+  test "sets correct chunked transfer-encoding headers" do
+    ReverseProxy.HTTPClientMock
+    |> expect(:request, get_responder(200, [{"content-length", "7"}]))
+
+    conn =
+      conn(:get, "/")
+      |> ReverseProxy.call(upstream: "example.com")
+
+    assert Enum.member?(conn.resp_headers, {"transfer-encoding", "chunked"}),
+           "sets transfer-encoding header"
+
+    resp_header_names =
+      conn.resp_headers
+      |> Enum.map(fn x -> elem(x, 0) end)
+
+    refute Enum.member?(resp_header_names, "content-length"),
+           "deletes the content-length header"
   end
 end

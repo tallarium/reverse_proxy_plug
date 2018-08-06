@@ -54,8 +54,14 @@ defmodule ReverseProxy do
         |> stream_response
 
       %HTTPoison.AsyncHeaders{headers: headers} ->
-        conn
-        |> put_resp_headers(headers)
+        headers
+        |> Enum.map(fn {header, value} -> {header |> String.downcase(), value} end)
+        |> Enum.reject(fn {header, _} -> header == "content-length" end)
+        |> Enum.reject(fn {header, _} -> header == "transfer-encoding" end)
+        |> Enum.concat([{"transfer-encoding", "chunked"}])
+        |> Enum.reduce(conn, fn {header, value}, conn ->
+          Conn.put_resp_header(conn, header, value)
+        end)
         |> Conn.send_chunked(conn.status)
         |> stream_response
 
@@ -149,14 +155,5 @@ defmodule ReverseProxy do
            fn _ -> nil end
          )}
     end
-  end
-
-  @spec put_resp_headers(Conn.t(), [{String.t(), String.t()}]) :: Conn.t()
-  defp put_resp_headers(conn, []), do: conn
-
-  defp put_resp_headers(conn, [{header, value} | rest]) do
-    conn
-    |> Conn.put_resp_header(header |> String.downcase(), value)
-    |> put_resp_headers(rest)
   end
 end
