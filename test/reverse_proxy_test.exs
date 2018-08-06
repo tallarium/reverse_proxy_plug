@@ -31,7 +31,7 @@ defmodule ReverseProxyTest do
       |> ReverseProxy.call(upstream: "example.com")
 
     assert conn.status == 200, "passes status through"
-    assert Enum.member?(conn.resp_headers, {"host", "example.com"}), "passes headers through"
+    assert {"host", "example.com"} in conn.resp_headers, "passes headers through"
     assert conn.resp_body == "Success", "passes body through"
   end
 
@@ -43,14 +43,14 @@ defmodule ReverseProxyTest do
       conn(:get, "/")
       |> ReverseProxy.call(upstream: "example.com")
 
-    assert Enum.member?(conn.resp_headers, {"transfer-encoding", "chunked"}),
+    assert {"transfer-encoding", "chunked"} in conn.resp_headers,
            "sets transfer-encoding header"
 
     resp_header_names =
       conn.resp_headers
       |> Enum.map(fn x -> elem(x, 0) end)
 
-    refute Enum.member?(resp_header_names, "content-length"),
+    refute "content-length" in resp_header_names,
            "deletes the content-length header"
   end
 end
