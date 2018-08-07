@@ -2,6 +2,7 @@ defmodule ReverseProxy do
   alias Plug.Conn
 
   @behaviour Plug
+  @http_client HTTPoison
 
   @spec init(Keyword.t()) :: Keyword.t()
   def init(opts), do: opts
@@ -19,7 +20,7 @@ defmodule ReverseProxy do
     opts =
       opts
       |> Keyword.merge(upstream_parts)
-      |> Keyword.put_new(:client, HTTPoison)
+      |> Keyword.put_new(:client, @http_client)
 
     retreive(conn, opts)
   end
@@ -89,15 +90,14 @@ defmodule ReverseProxy do
       |> Enum.filter(fn {key, _} -> key in keys end)
       |> Keyword.merge(Enum.filter(overrides, fn {_, val} -> !!val end))
 
-    request_path = Enum.join(conn.path_info, "/")
+    request_path = Path.join(overrides[:request_path] || "/", conn.request_path)
 
     request_path =
-      case request_path do
-        "" -> request_path
-        path -> "/" <> path
-      end
+      if String.ends_with?(conn.request_path, "/"),
+        do: request_path <> "/",
+        else: request_path
 
-    url = "#{x[:scheme]}://#{x[:host]}:#{x[:port]}#{overrides[:request_path]}#{request_path}"
+    url = "#{x[:scheme]}://#{x[:host]}:#{x[:port]}#{request_path}"
 
     case x[:query_string] do
       "" -> url

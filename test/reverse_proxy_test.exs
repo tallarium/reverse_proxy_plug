@@ -71,4 +71,18 @@ defmodule ReverseProxyTest do
       client: ReverseProxy.HTTPClientMock
     )
   end
+
+  test "preserves trailing slash at the end of request path" do
+    ReverseProxy.HTTPClientMock
+    |> expect(:request, fn _method, url, _body, _headers, _options ->
+      assert url == "http://example.com:80/root_path/"
+      default_responder()
+    end)
+
+    conn(:get, "/root_path/")
+    |> ReverseProxy.call(
+      upstream: "//example.com",
+      client: ReverseProxy.HTTPClientMock
+    )
+  end
 end
