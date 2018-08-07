@@ -5,7 +5,7 @@ defmodule ReverseProxyTest do
   import Mox
 
   defp get_responder(status \\ 200, headers \\ [], body \\ "Success", no_chunks \\ 1) do
-    fn _a, _b, _c, _d, _e ->
+    fn _method, _url, _body, _headers, _options ->
       send(self(), %HTTPoison.AsyncStatus{code: status})
       send(self(), %HTTPoison.AsyncHeaders{headers: headers})
 
@@ -20,6 +20,10 @@ defmodule ReverseProxyTest do
       send(self(), %HTTPoison.AsyncEnd{})
       nil
     end
+  end
+
+  defp default_responder() do
+    get_responder().(nil, nil, nil, nil, nil)
   end
 
   test "receives response" do
@@ -52,5 +56,16 @@ defmodule ReverseProxyTest do
 
     refute "content-length" in resp_header_names,
            "deletes the content-length header"
+  end
+
+  test "handles request path and query string" do
+    ReverseProxy.HTTPClientMock
+    |> expect(:request, fn _method, url, _body, _headers, _options ->
+      assert url == "http://example.com:80/root_upstream/root_path?query=yes"
+      default_responder()
+    end)
+
+    conn(:get, "/root_path")
+    |> ReverseProxy.call(upstream: "//example.com/root_upstream?query=yes")
   end
 end

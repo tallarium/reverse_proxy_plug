@@ -16,7 +16,7 @@ defmodule ReverseProxy do
       |> Map.to_list()
       |> Enum.filter(fn {_, val} -> !!val end)
       |> keyword_rename(:path, :request_path)
-      |> keyword_rename(:query, :query_path)
+      |> keyword_rename(:query, :query_string)
 
     opts = opts |> Keyword.merge(upstream)
 
@@ -107,10 +107,6 @@ defmodule ReverseProxy do
   defp prepare_request(conn, options) do
     conn =
       conn
-      |> Conn.put_req_header(
-        "x-forwarded-for",
-        conn.remote_ip |> :inet.ntoa() |> to_string
-      )
       |> Conn.delete_req_header("transfer-encoding")
 
     method = conn.method |> String.downcase() |> String.to_atom()
