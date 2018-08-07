@@ -1,4 +1,4 @@
-defmodule ReverseProxy.HTTPClient do
+defmodule ReverseProxyPlug.HTTPClient do
   @moduledoc """
   Behaviour defining the HTTP client interface needed for reverse proxying.
   """

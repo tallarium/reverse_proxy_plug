@@ -1,1 +1,1 @@
-Mox.defmock(ReverseProxy.HTTPClientMock, for: ReverseProxy.HTTPClient)
+Mox.defmock(ReverseProxyPlug.HTTPClientMock, for: ReverseProxyPlug.HTTPClient)

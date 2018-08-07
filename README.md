@@ -29,7 +29,7 @@ The plug works best when used with
 Drop this line into your Plug router:
 
 ```elixir
-forward("/foo", to: ReverseProxy, upstream: "//example.com/bar")
+forward("/foo", to: ReverseProxyPlug, upstream: "//example.com/bar")
 ```
 
 Now all requests matching `/foo` will be proxied to the upstream. For
@@ -38,7 +38,7 @@ example, a request to `/foo/baz` made over HTTP will result in a request to
 
 You can also specify the scheme or choose a port:
 ```elixir
-forward("/foo", to: ReverseProxy, upstream: "https://example.com:4200/bar")
+forward("/foo", to: ReverseProxyPlug, upstream: "https://example.com:4200/bar")
 ```
 
 In general, the `:upstream` option should be a well formed URI parseable by
@@ -46,14 +46,14 @@ In general, the `:upstream` option should be a well formed URI parseable by
 
 ## Chunked transfer encoding
 
-`reverse_proxy_plug` supports chunked transfer encoding and by default the
+`ReverseProxyPlug` supports chunked transfer encoding and by default the
 responses are not buffered. This means that when a proxied server starts a
-chunk transfer encoded response, `reverse_proxy_plug` will pass chunks back
+chunk transfer encoded response, `ReverseProxyPlug` will pass chunks back
 to the client as soon as they arrive, resulting in zero delay.
 
-Currently `reverse_proxy_plug` chunk transfer encodes all its responses, to
+Currently `ReverseProxyPlug` chunk transfer encodes all its responses, to
 support this behaviour.
 
 ## License
 
-ReverseProxy is released under the MIT License.
+ReverseProxyPlug is released under the MIT License.

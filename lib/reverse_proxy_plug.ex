@@ -1,6 +1,6 @@
-defmodule ReverseProxy do
+defmodule ReverseProxyPlug do
   @moduledoc """
-  The main ReverseProxy plug module.
+  The main ReverseProxyPlug module.
   """
 
   alias Plug.Conn

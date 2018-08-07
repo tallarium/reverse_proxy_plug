@@ -27,12 +27,12 @@ defmodule ReverseProxyTest do
   end
 
   test "receives response" do
-    ReverseProxy.HTTPClientMock
+    ReverseProxyPlug.HTTPClientMock
     |> expect(:request, get_responder(200, [{"host", "example.com"}], "Success", 2))
 
     conn =
       conn(:get, "/")
-      |> ReverseProxy.call(upstream: "example.com", client: ReverseProxy.HTTPClientMock)
+      |> ReverseProxyPlug.call(upstream: "example.com", client: ReverseProxyPlug.HTTPClientMock)
 
     assert conn.status == 200, "passes status through"
     assert {"host", "example.com"} in conn.resp_headers, "passes headers through"
@@ -40,12 +40,12 @@ defmodule ReverseProxyTest do
   end
 
   test "sets correct chunked transfer-encoding headers" do
-    ReverseProxy.HTTPClientMock
+    ReverseProxyPlug.HTTPClientMock
     |> expect(:request, get_responder(200, [{"content-length", "7"}]))
 
     conn =
       conn(:get, "/")
-      |> ReverseProxy.call(upstream: "example.com", client: ReverseProxy.HTTPClientMock)
+      |> ReverseProxyPlug.call(upstream: "example.com", client: ReverseProxyPlug.HTTPClientMock)
 
     assert {"transfer-encoding", "chunked"} in conn.resp_headers,
            "sets transfer-encoding header"
@@ -59,30 +59,30 @@ defmodule ReverseProxyTest do
   end
 
   test "handles request path and query string" do
-    ReverseProxy.HTTPClientMock
+    ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _method, url, _body, _headers, _options ->
       assert url == "http://example.com:80/root_upstream/root_path?query=yes"
       default_responder()
     end)
 
     conn(:get, "/root_path")
-    |> ReverseProxy.call(
+    |> ReverseProxyPlug.call(
       upstream: "//example.com/root_upstream?query=yes",
-      client: ReverseProxy.HTTPClientMock
+      client: ReverseProxyPlug.HTTPClientMock
     )
   end
 
   test "preserves trailing slash at the end of request path" do
-    ReverseProxy.HTTPClientMock
+    ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _method, url, _body, _headers, _options ->
       assert url == "http://example.com:80/root_path/"
       default_responder()
     end)
 
     conn(:get, "/root_path/")
-    |> ReverseProxy.call(
+    |> ReverseProxyPlug.call(
       upstream: "//example.com",
-      client: ReverseProxy.HTTPClientMock
+      client: ReverseProxyPlug.HTTPClientMock
     )
   end
 end
