@@ -90,7 +90,8 @@ defmodule ReverseProxy do
       |> Enum.filter(fn {key, _} -> key in keys end)
       |> Keyword.merge(Enum.filter(overrides, fn {_, val} -> !!val end))
 
-    request_path = Path.join(overrides[:request_path] || "/", conn.request_path)
+    request_path = Enum.join(conn.path_info, "/")
+    request_path = Path.join(overrides[:request_path] || "/", request_path)
 
     request_path =
       if String.ends_with?(conn.request_path, "/"),
