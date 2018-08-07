@@ -1,6 +1,6 @@
 # ReverseProxyPlug
 
-A reverse proxy plug for proxying a request to another URL using HTTPoison.
+A reverse proxy plug for proxying a request to another URL using [HTTPoison](https://github.com/edgurgel/httpoison).
 Perfect when you need to transparently proxy requests to another service but
 also need to have full programmatic control over the outgoing requests.
 
