@@ -13,7 +13,7 @@ defmodule ReverseProxyTest do
       |> String.codepoints()
       |> Enum.chunk_every(body |> String.length() |> div(no_chunks))
       |> Enum.map(&Enum.join/1)
-      |> Enum.map(fn chunk ->
+      |> Enum.each(fn chunk ->
         send(self(), %HTTPoison.AsyncChunk{chunk: chunk})
       end)
 
@@ -22,7 +22,7 @@ defmodule ReverseProxyTest do
     end
   end
 
-  defp default_responder() do
+  defp default_responder do
     get_responder().(nil, nil, nil, nil, nil)
   end
 

@@ -1,4 +1,8 @@
 defmodule ReverseProxy do
+  @moduledoc """
+  The main ReverseProxy plug module.
+  """
+
   alias Plug.Conn
 
   @behaviour Plug
@@ -10,10 +14,11 @@ defmodule ReverseProxy do
   @spec call(Plug.Conn.t(), Keyword.t()) :: Plug.Conn.t()
   def call(conn, opts) do
     upstream_parts =
-      Keyword.get(opts, :upstream, "")
+      opts
+      |> Keyword.get(:upstream, "")
       |> URI.parse()
       |> Map.to_list()
-      |> Enum.filter(fn {_, val} -> !!val end)
+      |> Enum.filter(fn {_, val} -> val end)
       |> keyword_rename(:path, :request_path)
       |> keyword_rename(:query, :query_string)
 
@@ -88,7 +93,7 @@ defmodule ReverseProxy do
       conn
       |> Map.to_list()
       |> Enum.filter(fn {key, _} -> key in keys end)
-      |> Keyword.merge(Enum.filter(overrides, fn {_, val} -> !!val end))
+      |> Keyword.merge(Enum.filter(overrides, fn {_, val} -> val end))
 
     request_path = Enum.join(conn.path_info, "/")
     request_path = Path.join(overrides[:request_path] || "/", request_path)
