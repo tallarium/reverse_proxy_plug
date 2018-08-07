@@ -3,14 +3,12 @@ defmodule ReverseProxy do
 
   @behaviour Plug
 
-  @http_client Application.get_env(:reverse_proxy_plug, :http_client)
-
   @spec init(Keyword.t()) :: Keyword.t()
   def init(opts), do: opts
 
   @spec call(Plug.Conn.t(), Keyword.t()) :: Plug.Conn.t()
   def call(conn, opts) do
-    upstream =
+    upstream_parts =
       Keyword.get(opts, :upstream, "")
       |> URI.parse()
       |> Map.to_list()
@@ -18,7 +16,10 @@ defmodule ReverseProxy do
       |> keyword_rename(:path, :request_path)
       |> keyword_rename(:query, :query_string)
 
-    opts = opts |> Keyword.merge(upstream)
+    opts =
+      opts
+      |> Keyword.merge(upstream_parts)
+      |> Keyword.put_new(:client, HTTPoison)
 
     retreive(conn, opts)
   end
@@ -32,7 +33,7 @@ defmodule ReverseProxy do
   def retreive(conn, options) do
     {method, url, body, headers} = prepare_request(conn, options)
 
-    @http_client.request(
+    options[:client].request(
       method,
       url,
       body,

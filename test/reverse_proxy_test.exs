@@ -32,7 +32,7 @@ defmodule ReverseProxyTest do
 
     conn =
       conn(:get, "/")
-      |> ReverseProxy.call(upstream: "example.com")
+      |> ReverseProxy.call(upstream: "example.com", client: ReverseProxy.HTTPClientMock)
 
     assert conn.status == 200, "passes status through"
     assert {"host", "example.com"} in conn.resp_headers, "passes headers through"
@@ -45,7 +45,7 @@ defmodule ReverseProxyTest do
 
     conn =
       conn(:get, "/")
-      |> ReverseProxy.call(upstream: "example.com")
+      |> ReverseProxy.call(upstream: "example.com", client: ReverseProxy.HTTPClientMock)
 
     assert {"transfer-encoding", "chunked"} in conn.resp_headers,
            "sets transfer-encoding header"
@@ -66,6 +66,9 @@ defmodule ReverseProxyTest do
     end)
 
     conn(:get, "/root_path")
-    |> ReverseProxy.call(upstream: "//example.com/root_upstream?query=yes")
+    |> ReverseProxy.call(
+      upstream: "//example.com/root_upstream?query=yes",
+      client: ReverseProxy.HTTPClientMock
+    )
   end
 end
