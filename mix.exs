@@ -8,8 +8,25 @@ defmodule ReverseProxyPlug.MixProject do
       elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      elixirc_paths: elixirc_paths(Mix.env())
+      elixirc_paths: elixirc_paths(Mix.env()),
+      description: description(),
+      package: package(),
     ]
+  end
+
+  defp description do
+    """
+    An Elixir reverse proxy Plug with HTTP/2, chunked transfer and path
+    proxying support.
+    """
+  end
+
+  defp package do
+    %{
+      maintainers: ["Michał Szewczak"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/tallarium/reverse_proxy_plug"}
+    }
   end
 
   defp elixirc_paths(:test), do: ["test/support", "lib"]
