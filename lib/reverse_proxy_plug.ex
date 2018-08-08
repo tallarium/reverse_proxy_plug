@@ -36,7 +36,7 @@ defmodule ReverseProxyPlug do
       |> Keyword.put(new_key, keywords[old_key])
       |> Keyword.delete(old_key)
 
-  def retreive(conn, options) do
+  defp retreive(conn, options) do
     {method, url, body, headers} = prepare_request(conn, options)
 
     options[:client].request(
