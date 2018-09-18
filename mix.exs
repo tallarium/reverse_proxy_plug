@@ -10,7 +10,7 @@ defmodule ReverseProxyPlug.MixProject do
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env()),
       description: description(),
-      package: package(),
+      package: package()
     ]
   end
 
