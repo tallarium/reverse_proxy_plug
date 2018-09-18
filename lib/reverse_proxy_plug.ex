@@ -27,7 +27,7 @@ defmodule ReverseProxyPlug do
       |> Keyword.merge(upstream_parts)
       |> Keyword.put_new(:client, @http_client)
 
-    retreive(conn, opts)
+    retrieve(conn, opts)
   end
 
   defp keyword_rename(keywords, old_key, new_key),
@@ -36,7 +36,7 @@ defmodule ReverseProxyPlug do
       |> Keyword.put(new_key, keywords[old_key])
       |> Keyword.delete(old_key)
 
-  defp retreive(conn, options) do
+  defp retrieve(conn, options) do
     {method, url, body, headers} = prepare_request(conn, options)
 
     options[:client].request(
@@ -113,6 +113,7 @@ defmodule ReverseProxyPlug do
 
   defp prepare_request(conn, options) do
     conn =
+      # With HTTP/2 `transfer-encoding` shouldn't be included.
       conn
       |> Conn.delete_req_header("transfer-encoding")
 
