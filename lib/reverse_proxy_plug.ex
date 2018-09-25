@@ -152,7 +152,7 @@ defmodule ReverseProxyPlug do
   defp get_client_opts(:chunked, opts) do
     opts
     |> Keyword.put_new(:timeout, :infinity)
-    |> Keyword.put_new(:timeout, :infinity)
+    |> Keyword.put_new(:recv_timeout, :infinity)
     |> Keyword.put_new(:stream_to, self())
   end
 
