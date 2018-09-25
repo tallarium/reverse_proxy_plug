@@ -22,3 +22,5 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 reverse_proxy_plug-*.tar
 
+# Vim swap files
+*.sw*
