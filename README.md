@@ -44,15 +44,24 @@ forward("/foo", to: ReverseProxyPlug, upstream: "https://example.com:4200/bar")
 In general, the `:upstream` option should be a well formed URI parseable by
 [`URI.parse/1`](https://hexdocs.pm/elixir/URI.html#parse/1).
 
-## Chunked transfer encoding
+## Response mode
 
-`ReverseProxyPlug` supports chunked transfer encoding and by default the
-responses are not buffered. This means that when a proxied server starts a
-chunk transfer encoded response, `ReverseProxyPlug` will pass chunks back
-to the client as soon as they arrive, resulting in zero delay.
+`ReverseProxyPlug` supports two response modes:
 
-Currently `ReverseProxyPlug` chunk transfer encodes all its responses, to
-support this behaviour.
+- `:stream` (default) - The response from the plug will always be chunk
+encoded. If the upstream server sends a chunked response, ReverseProxyPlug
+will pass chunks to the clients as soon as they arrive, resulting in zero
+delay.
+
+- `:buffer` - The plug will wait until the whole response is received from
+the upstream server, at which point it will send it to the client using
+`Conn.send_resp`. This allows for processing the response before sending it
+back using `Conn.register_before_send`.
+
+You can choose the response mode by passing a `:response_mode` option:
+```elixir
+forward("/foo", to: ReverseProxyPlug, response_mode: :buffer, upstream: "//example.com/bar")
+```
 
 ## License
 
