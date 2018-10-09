@@ -27,7 +27,7 @@ defmodule ReverseProxyPlug do
       |> Keyword.merge(upstream_parts)
       |> Keyword.put_new(:client, @http_client)
       |> Keyword.put_new(:client_options, [])
-      |> Keyword.put_new(:transfer, :chunked)
+      |> Keyword.put_new(:response_mode, :stream)
 
     retrieve(conn, opts)
   end
@@ -49,7 +49,7 @@ defmodule ReverseProxyPlug do
              headers,
              client_options
            ) do
-      process_response(options[:transfer], conn, resp)
+      process_response(options[:response_mode], conn, resp)
     else
       _ ->
         conn
@@ -58,10 +58,10 @@ defmodule ReverseProxyPlug do
     end
   end
 
-  defp process_response(:chunked, conn, _resp),
+  defp process_response(:stream, conn, _resp),
     do: stream_response(conn)
 
-  defp process_response(_, conn, %{status_code: status, body: body}),
+  defp process_response(:buffer, conn, %{status_code: status, body: body}),
     do:
       conn
       |> Conn.resp(status, body)
@@ -143,20 +143,20 @@ defmodule ReverseProxyPlug do
     body = read_body(conn)
 
     client_options =
-      options[:transfer]
+      options[:response_mode]
       |> get_client_opts(options[:client_options])
 
     {method, url, body, headers, client_options}
   end
 
-  defp get_client_opts(:chunked, opts) do
+  defp get_client_opts(:stream, opts) do
     opts
     |> Keyword.put_new(:timeout, :infinity)
     |> Keyword.put_new(:recv_timeout, :infinity)
     |> Keyword.put_new(:stream_to, self())
   end
 
-  defp get_client_opts(_, opts), do: opts
+  defp get_client_opts(:buffer, opts), do: opts
 
   defp read_body(conn) do
     case Conn.read_body(conn) do
