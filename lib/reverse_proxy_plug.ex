@@ -26,8 +26,10 @@ defmodule ReverseProxyPlug do
       opts
       |> Keyword.merge(upstream_parts)
       |> Keyword.put_new(:client, @http_client)
+      |> Keyword.put_new(:client_options, [])
+      |> Keyword.put_new(:response_mode, :stream)
 
-    retreive(conn, opts)
+    retrieve(conn, opts)
   end
 
   defp keyword_rename(keywords, old_key, new_key),
@@ -36,21 +38,33 @@ defmodule ReverseProxyPlug do
       |> Keyword.put(new_key, keywords[old_key])
       |> Keyword.delete(old_key)
 
-  defp retreive(conn, options) do
-    {method, url, body, headers} = prepare_request(conn, options)
+  defp retrieve(conn, options) do
+    {method, url, body, headers, client_options} = prepare_request(conn, options)
 
-    options[:client].request(
-      method,
-      url,
-      body,
-      headers,
-      timeout: :infinity,
-      recv_timeout: :infinity,
-      stream_to: self()
-    )
-
-    stream_response(conn)
+    with {:ok, resp} <-
+           options[:client].request(
+             method,
+             url,
+             body,
+             headers,
+             client_options
+           ) do
+      process_response(options[:response_mode], conn, resp)
+    else
+      _ ->
+        conn
+        |> Conn.resp(:bad_gateway, "")
+        |> Conn.send_resp()
+    end
   end
+
+  defp process_response(:stream, conn, _resp),
+    do: stream_response(conn)
+
+  defp process_response(:buffer, conn, %{status_code: status, body: body}),
+    do:
+      conn
+      |> Conn.resp(status, body)
 
   @spec stream_response(Conn.t()) :: Conn.t()
   defp stream_response(conn) do
@@ -112,6 +126,7 @@ defmodule ReverseProxyPlug do
   end
 
   defp prepare_request(conn, options) do
+    # With HTTP/2 `transfer-encoding` shouldn't be included.
     conn =
       conn
       |> Conn.delete_req_header("transfer-encoding")
@@ -127,8 +142,21 @@ defmodule ReverseProxyPlug do
 
     body = read_body(conn)
 
-    {method, url, body, headers}
+    client_options =
+      options[:response_mode]
+      |> get_client_opts(options[:client_options])
+
+    {method, url, body, headers, client_options}
   end
+
+  defp get_client_opts(:stream, opts) do
+    opts
+    |> Keyword.put_new(:timeout, :infinity)
+    |> Keyword.put_new(:recv_timeout, :infinity)
+    |> Keyword.put_new(:stream_to, self())
+  end
+
+  defp get_client_opts(:buffer, opts), do: opts
 
   defp read_body(conn) do
     case Conn.read_body(conn) do

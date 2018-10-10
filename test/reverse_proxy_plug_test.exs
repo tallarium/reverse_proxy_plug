@@ -18,7 +18,7 @@ defmodule ReverseProxyTest do
       end)
 
       send(self(), %HTTPoison.AsyncEnd{})
-      nil
+      {:ok, nil}
     end
   end
 
