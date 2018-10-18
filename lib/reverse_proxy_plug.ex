@@ -61,10 +61,15 @@ defmodule ReverseProxyPlug do
   defp process_response(:stream, conn, _resp),
     do: stream_response(conn)
 
-  defp process_response(:buffer, conn, %{status_code: status, body: body}),
-    do:
-      conn
-      |> Conn.resp(status, body)
+  defp process_response(:buffer, conn, %{status_code: status, body: body, headers: headers}) do
+    resp_headers =
+      headers
+      |> remove_hop_by_hop_headers
+
+    conn
+    |> Conn.prepend_resp_headers(resp_headers)
+    |> Conn.resp(status, body)
+  end
 
   @spec stream_response(Conn.t()) :: Conn.t()
   defp stream_response(conn) do
@@ -156,7 +161,28 @@ defmodule ReverseProxyPlug do
     |> Keyword.put_new(:stream_to, self())
   end
 
-  defp get_client_opts(:buffer, opts), do: opts
+  defp get_client_opts(:buffer, opts) do
+    opts
+    |> Keyword.put_new(:timeout, :infinity)
+    |> Keyword.put_new(:recv_timeout, :infinity)
+  end
+
+  defp remove_hop_by_hop_headers(headers) do
+    hop_by_hop_headers = [
+      "te",
+      "transfer-encoding",
+      "trailer",
+      "connection",
+      "keep-alive",
+      "proxy-authenticate",
+      "proxy-authorization",
+      "upgrade"
+    ]
+
+    headers
+    |> Enum.map(fn {header, value} -> {String.downcase(header), value} end)
+    |> Enum.reject(fn {header, _} -> Enum.member?(hop_by_hop_headers, header) end)
+  end
 
   defp read_body(conn) do
     case Conn.read_body(conn) do
