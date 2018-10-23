@@ -5,7 +5,7 @@ defmodule ReverseProxyPlug.MixProject do
     [
       app: :reverse_proxy_plug,
       version: "0.3.0",
-      elixir: "~> 1.6",
+      elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -47,7 +47,7 @@ defmodule ReverseProxyPlug.MixProject do
       {:httpoison, "~> 1.2"},
       {:credo, "~> 0.5", only: [:dev, :test]},
       {:mox, "~> 0.4", only: :test},
-      {:ex_doc, "~> 0.18.0", only: :dev}
+      {:ex_doc, "~> 0.19", only: :dev}
     ]
   end
 end
