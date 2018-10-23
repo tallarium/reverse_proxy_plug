@@ -1,10 +1,10 @@
-defmodule ReverseProxyTest do
+defmodule ReverseProxyStreamTest do
   use ExUnit.Case
   use Plug.Test
 
   import Mox
 
-  defp get_responder(status \\ 200, headers \\ [], body \\ "Success", no_chunks \\ 1) do
+  defp get_stream_responder(status \\ 200, headers \\ [], body \\ "Success", no_chunks \\ 1) do
     fn _method, _url, _body, _headers, _options ->
       send(self(), %HTTPoison.AsyncStatus{code: status})
       send(self(), %HTTPoison.AsyncHeaders{headers: headers})
@@ -22,13 +22,13 @@ defmodule ReverseProxyTest do
     end
   end
 
-  defp default_responder do
-    get_responder().(nil, nil, nil, nil, nil)
+  defp default_stream_responder do
+    get_stream_responder().(nil, nil, nil, nil, nil)
   end
 
   test "receives response" do
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_responder(200, [{"host", "example.com"}], "Success", 2))
+    |> expect(:request, get_stream_responder(200, [{"host", "example.com"}], "Success", 2))
 
     conn =
       conn(:get, "/")
@@ -41,7 +41,7 @@ defmodule ReverseProxyTest do
 
   test "sets correct chunked transfer-encoding headers" do
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_responder(200, [{"content-length", "7"}]))
+    |> expect(:request, get_stream_responder(200, [{"content-length", "7"}]))
 
     conn =
       conn(:get, "/")
@@ -62,7 +62,7 @@ defmodule ReverseProxyTest do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _method, url, _body, _headers, _options ->
       assert url == "http://example.com:80/root_upstream/root_path?query=yes"
-      default_responder()
+      default_stream_responder()
     end)
 
     conn(:get, "/root_path")
@@ -76,7 +76,7 @@ defmodule ReverseProxyTest do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _method, url, _body, _headers, _options ->
       assert url == "http://example.com:80/root_path/"
-      default_responder()
+      default_stream_responder()
     end)
 
     conn(:get, "/root_path/")
