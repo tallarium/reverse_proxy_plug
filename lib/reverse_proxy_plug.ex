@@ -82,6 +82,7 @@ defmodule ReverseProxyPlug do
       %HTTPoison.AsyncHeaders{headers: headers} ->
         headers
         |> Enum.map(fn {header, value} -> {header |> String.downcase(), value} end)
+        |> remove_hop_by_hop_headers
         |> Enum.reject(fn {header, _} -> header == "content-length" end)
         |> Enum.reject(fn {header, _} -> header == "transfer-encoding" end)
         |> Enum.concat([{"transfer-encoding", "chunked"}])
@@ -138,7 +139,10 @@ defmodule ReverseProxyPlug do
 
     method = conn.method |> String.downcase() |> String.to_atom()
     url = prepare_url(conn, options)
-    headers = conn.req_headers
+
+    headers =
+      conn.req_headers
+      |> remove_hop_by_hop_headers
 
     headers =
       if options[:preserve_host_header],
