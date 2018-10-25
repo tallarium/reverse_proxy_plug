@@ -10,14 +10,43 @@ defmodule ReverseProxyBufferTest do
           client: ReverseProxyPlug.HTTPClientMock
         )
 
+  @hop_by_hop_headers [
+    {"connection", "keep-alive"},
+    {"keep-alive", "timeout=5, max=1000"},
+    {"upgrade", "h2c"},
+    {"transfer-encoding", "chunked"},
+    {"proxy-authenticate", "Basic"},
+    {"proxy-authorization", "Basic abcd"},
+    {"te", "compress"},
+    {"trailer", "Expires"}
+  ]
+
+  @end_to_end_headers [
+    {"content-length", "42"},
+    {"cache-control", "max-age=3600"}
+  ]
+
   defp get_buffer_responder(status \\ 200, headers \\ [], body \\ "Success") do
     fn _method, _url, _body, _headers, _options ->
       {:ok, %HTTPoison.Response{body: body, headers: headers, status_code: status}}
     end
   end
 
-  defp default_buffer_responder do
-    get_buffer_responder().(nil, nil, nil)
+  defp get_mock_request(expected_headers) do
+    fn _method, _url, _body, headers, _options ->
+      assert headers == expected_headers
+    end
+  end
+
+  test "removes hop-by-hop headers before forwarding request" do
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, get_mock_request(@end_to_end_headers))
+
+    conn(:get, "/")
+    |> Map.put(:req_headers, @hop_by_hop_headers ++ @end_to_end_headers)
+    |> ReverseProxyPlug.call(@opts)
+
+    ReverseProxyPlug.HTTPClientMock |> verify!
   end
 
   test "receives response" do
@@ -36,30 +65,17 @@ defmodule ReverseProxyBufferTest do
   end
 
   test "removes hop-by-hop headers from response" do
-    hop_by_hop_headers = [
-      {"connection", "keep-alive"},
-      {"keep-alive", "timeout=5, max=1000"},
-      {"upgrade", "h2c"},
-      {"transfer-encoding", "chunked"}
-    ]
-
-    other_headers = [
-      {"host", "example.com"},
-      {"content-length", "42"},
-      {"cache-control", "max-age=3600"}
-    ]
-
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_buffer_responder(200, Enum.concat(hop_by_hop_headers, other_headers)))
+    |> expect(:request, get_buffer_responder(200, @hop_by_hop_headers ++ @end_to_end_headers))
 
     conn =
       conn(:get, "/")
       |> ReverseProxyPlug.call(@opts)
 
-    assert Enum.all?(hop_by_hop_headers, fn x -> x not in conn.resp_headers end),
+    assert Enum.all?(@hop_by_hop_headers, fn x -> x not in conn.resp_headers end),
            "deletes hop-by-hop headers"
 
-    assert Enum.all?(other_headers, fn x -> x in conn.resp_headers end),
+    assert Enum.all?(@end_to_end_headers, fn x -> x in conn.resp_headers end),
            "passes other headers through"
   end
 
