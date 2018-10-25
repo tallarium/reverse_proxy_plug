@@ -64,7 +64,7 @@ defmodule ReverseProxyPlug do
   defp process_response(:buffer, conn, %{status_code: status, body: body, headers: headers}) do
     resp_headers =
       headers
-      |> remove_hop_by_hop_headers
+      |> normalize_headers
 
     conn
     |> Conn.prepend_resp_headers(resp_headers)
@@ -81,9 +81,8 @@ defmodule ReverseProxyPlug do
 
       %HTTPoison.AsyncHeaders{headers: headers} ->
         headers
-        |> Enum.map(fn {header, value} -> {header |> String.downcase(), value} end)
+        |> normalize_headers
         |> Enum.reject(fn {header, _} -> header == "content-length" end)
-        |> Enum.reject(fn {header, _} -> header == "transfer-encoding" end)
         |> Enum.concat([{"transfer-encoding", "chunked"}])
         |> Enum.reduce(conn, fn {header, value}, conn ->
           Conn.put_resp_header(conn, header, value)
@@ -131,14 +130,12 @@ defmodule ReverseProxyPlug do
   end
 
   defp prepare_request(conn, options) do
-    # With HTTP/2 `transfer-encoding` shouldn't be included.
-    conn =
-      conn
-      |> Conn.delete_req_header("transfer-encoding")
-
     method = conn.method |> String.downcase() |> String.to_atom()
     url = prepare_url(conn, options)
-    headers = conn.req_headers
+
+    headers =
+      conn.req_headers
+      |> normalize_headers
 
     headers =
       if options[:preserve_host_header],
@@ -167,6 +164,17 @@ defmodule ReverseProxyPlug do
     |> Keyword.put_new(:recv_timeout, :infinity)
   end
 
+  defp normalize_headers(headers) do
+    headers
+    |> downcase_headers
+    |> remove_hop_by_hop_headers
+  end
+
+  defp downcase_headers(headers) do
+    headers
+    |> Enum.map(fn {header, value} -> {String.downcase(header), value} end)
+  end
+
   defp remove_hop_by_hop_headers(headers) do
     hop_by_hop_headers = [
       "te",
@@ -180,7 +188,6 @@ defmodule ReverseProxyPlug do
     ]
 
     headers
-    |> Enum.map(fn {header, value} -> {String.downcase(header), value} end)
     |> Enum.reject(fn {header, _} -> Enum.member?(hop_by_hop_headers, header) end)
   end
 

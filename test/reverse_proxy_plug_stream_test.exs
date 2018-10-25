@@ -4,6 +4,31 @@ defmodule ReverseProxyStreamTest do
 
   import Mox
 
+  @opts ReverseProxyPlug.init(
+          upstream: "example.com",
+          client: ReverseProxyPlug.HTTPClientMock
+        )
+
+  @hop_by_hop_headers [
+    {"connection", "keep-alive"},
+    {"keep-alive", "timeout=5, max=1000"},
+    {"upgrade", "h2c"},
+    {"proxy-authenticate", "Basic"},
+    {"proxy-authorization", "Basic abcd"},
+    {"te", "compress"},
+    {"trailer", "Expires"}
+  ]
+
+  @end_to_end_headers [
+    {"cache-control", "max-age=3600"},
+    {"cookie", "acookie"},
+    {"date", "Tue, 15 Nov 1994 08:12:31 GMT"}
+  ]
+
+  @host_header [
+    {"host", "example.com"}
+  ]
+
   defp get_stream_responder(status \\ 200, headers \\ [], body \\ "Success", no_chunks \\ 1) do
     fn _method, _url, _body, _headers, _options ->
       send(self(), %HTTPoison.AsyncStatus{code: status})
@@ -26,17 +51,50 @@ defmodule ReverseProxyStreamTest do
     get_stream_responder().(nil, nil, nil, nil, nil)
   end
 
+  defp get_mock_request(expected_headers) do
+    fn _method, _url, _body, headers, _options ->
+      assert headers == expected_headers
+    end
+  end
+
   test "receives response" do
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_stream_responder(200, [{"host", "example.com"}], "Success", 2))
+    |> expect(:request, get_stream_responder(200, @host_header, "Success", 2))
 
     conn =
       conn(:get, "/")
-      |> ReverseProxyPlug.call(upstream: "example.com", client: ReverseProxyPlug.HTTPClientMock)
+      |> ReverseProxyPlug.call(@opts)
 
     assert conn.status == 200, "passes status through"
     assert {"host", "example.com"} in conn.resp_headers, "passes headers through"
     assert conn.resp_body == "Success", "passes body through"
+  end
+
+  test "removes hop-by-hop headers before forwarding request" do
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, get_mock_request(@end_to_end_headers))
+
+    conn =
+      conn(:get, "/")
+      |> Map.put(:req_headers, @hop_by_hop_headers ++ @end_to_end_headers)
+      |> ReverseProxyPlug.call(@opts)
+
+    ReverseProxyPlug.HTTPClientMock |> verify!
+  end
+
+  test "removes hop-by-hop headers from response" do
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, get_stream_responder(200, @hop_by_hop_headers ++ @end_to_end_headers))
+
+    conn =
+      conn(:get, "/")
+      |> ReverseProxyPlug.call(@opts)
+
+    assert Enum.all?(@hop_by_hop_headers, fn x -> x not in conn.resp_headers end),
+           "deletes hop-by-hop headers"
+
+    assert Enum.all?(@end_to_end_headers, fn x -> x in conn.resp_headers end),
+           "passes other headers through"
   end
 
   test "sets correct chunked transfer-encoding headers" do
@@ -45,7 +103,7 @@ defmodule ReverseProxyStreamTest do
 
     conn =
       conn(:get, "/")
-      |> ReverseProxyPlug.call(upstream: "example.com", client: ReverseProxyPlug.HTTPClientMock)
+      |> ReverseProxyPlug.call(@opts)
 
     assert {"transfer-encoding", "chunked"} in conn.resp_headers,
            "sets transfer-encoding header"
