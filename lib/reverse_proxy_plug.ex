@@ -51,7 +51,13 @@ defmodule ReverseProxyPlug do
            ) do
       process_response(options[:response_mode], conn, resp)
     else
-      _ ->
+      error ->
+        error_callback = options[:error_callback]
+
+        if error_callback do
+          error_callback.(error)
+        end
+
         conn
         |> Conn.resp(:bad_gateway, "")
         |> Conn.send_resp()
