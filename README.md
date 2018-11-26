@@ -63,6 +63,19 @@ You can choose the response mode by passing a `:response_mode` option:
 forward("/foo", to: ReverseProxyPlug, response_mode: :buffer, upstream: "//example.com/bar")
 ```
 
+## Connection errors
+
+`ReverseProxyPlug` will automatically respond with 502 Bad Gateway in case of
+network error. To inspect the HTTPoison error that caused the response, you
+can pass an `:error_callback` option.
+
+```elixir
+plug(ReverseProxyPlug,
+  upstream: "example.com",
+  error_callback: fn error -> Logger.error("Network error: #{inspect(error)}") end
+)
+```
+
 ## License
 
 ReverseProxyPlug is released under the MIT License.
