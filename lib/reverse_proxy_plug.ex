@@ -9,10 +9,7 @@ defmodule ReverseProxyPlug do
   @http_client HTTPoison
 
   @spec init(Keyword.t()) :: Keyword.t()
-  def init(opts), do: opts
-
-  @spec call(Plug.Conn.t(), Keyword.t()) :: Plug.Conn.t()
-  def call(conn, opts) do
+  def init(opts) do
     upstream_parts =
       opts
       |> Keyword.get(:upstream, "")
@@ -22,13 +19,15 @@ defmodule ReverseProxyPlug do
       |> keyword_rename(:path, :request_path)
       |> keyword_rename(:query, :query_string)
 
-    opts =
-      opts
-      |> Keyword.merge(upstream_parts)
-      |> Keyword.put_new(:client, @http_client)
-      |> Keyword.put_new(:client_options, [])
-      |> Keyword.put_new(:response_mode, :stream)
+    opts
+    |> Keyword.merge(upstream_parts)
+    |> Keyword.put_new(:client, @http_client)
+    |> Keyword.put_new(:client_options, [])
+    |> Keyword.put_new(:response_mode, :stream)
+  end
 
+  @spec call(Plug.Conn.t(), Keyword.t()) :: Plug.Conn.t()
+  def call(conn, opts) do
     retrieve(conn, opts)
   end
 
