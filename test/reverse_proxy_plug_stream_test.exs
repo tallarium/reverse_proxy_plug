@@ -125,8 +125,10 @@ defmodule ReverseProxyStreamTest do
 
     conn(:get, "/root_path")
     |> ReverseProxyPlug.call(
-      upstream: "//example.com/root_upstream?query=yes",
-      client: ReverseProxyPlug.HTTPClientMock
+      ReverseProxyPlug.init(
+        upstream: "//example.com/root_upstream?query=yes",
+        client: ReverseProxyPlug.HTTPClientMock
+      )
     )
   end
 
@@ -139,8 +141,10 @@ defmodule ReverseProxyStreamTest do
 
     conn(:get, "/root_path/")
     |> ReverseProxyPlug.call(
-      upstream: "//example.com",
-      client: ReverseProxyPlug.HTTPClientMock
+      ReverseProxyPlug.init(
+        upstream: "//example.com",
+        client: ReverseProxyPlug.HTTPClientMock
+      )
     )
   end
 end

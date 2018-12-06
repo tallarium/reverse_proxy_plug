@@ -9,10 +9,7 @@ defmodule ReverseProxyPlug do
   @http_client HTTPoison
 
   @spec init(Keyword.t()) :: Keyword.t()
-  def init(opts), do: opts
-
-  @spec call(Plug.Conn.t(), Keyword.t()) :: Plug.Conn.t()
-  def call(conn, opts) do
+  def init(opts) do
     upstream_parts =
       opts
       |> Keyword.get(:upstream, "")
@@ -22,14 +19,44 @@ defmodule ReverseProxyPlug do
       |> keyword_rename(:path, :request_path)
       |> keyword_rename(:query, :query_string)
 
-    opts =
-      opts
-      |> Keyword.merge(upstream_parts)
-      |> Keyword.put_new(:client, @http_client)
-      |> Keyword.put_new(:client_options, [])
-      |> Keyword.put_new(:response_mode, :stream)
+    opts
+    |> Keyword.merge(upstream_parts)
+    |> Keyword.put_new(:client, @http_client)
+    |> Keyword.put_new(:client_options, [])
+    |> Keyword.put_new(:response_mode, :stream)
+  end
 
-    retrieve(conn, opts)
+  @spec call(Plug.Conn.t(), Keyword.t()) :: Plug.Conn.t()
+  def call(conn, opts) do
+    conn |> request(opts) |> response(conn, opts)
+  end
+
+  def request(conn, opts) do
+    {method, url, body, headers, client_options} = prepare_request(conn, opts)
+
+    opts[:client].request(
+      method,
+      url,
+      body,
+      headers,
+      client_options
+    )
+  end
+
+  def response({:ok, resp}, conn, opts) do
+    process_response(opts[:response_mode], conn, resp)
+  end
+
+  def response(error, conn, opts) do
+    error_callback = opts[:error_callback]
+
+    if error_callback do
+      error_callback.(error)
+    end
+
+    conn
+    |> Conn.resp(:bad_gateway, "")
+    |> Conn.send_resp()
   end
 
   defp keyword_rename(keywords, old_key, new_key),
@@ -37,32 +64,6 @@ defmodule ReverseProxyPlug do
       keywords
       |> Keyword.put(new_key, keywords[old_key])
       |> Keyword.delete(old_key)
-
-  defp retrieve(conn, options) do
-    {method, url, body, headers, client_options} = prepare_request(conn, options)
-
-    with {:ok, resp} <-
-           options[:client].request(
-             method,
-             url,
-             body,
-             headers,
-             client_options
-           ) do
-      process_response(options[:response_mode], conn, resp)
-    else
-      error ->
-        error_callback = options[:error_callback]
-
-        if error_callback do
-          error_callback.(error)
-        end
-
-        conn
-        |> Conn.resp(:bad_gateway, "")
-        |> Conn.send_resp()
-    end
-  end
 
   defp process_response(:stream, conn, _resp),
     do: stream_response(conn)
