@@ -28,11 +28,12 @@ defmodule ReverseProxyPlug do
 
   @spec call(Plug.Conn.t(), Keyword.t()) :: Plug.Conn.t()
   def call(conn, opts) do
-    conn |> request(opts) |> response(conn, opts)
+    body = read_body(conn)
+    conn |> request(body, opts) |> response(conn, opts)
   end
 
-  def request(conn, opts) do
-    {method, url, body, headers, client_options} = prepare_request(conn, opts)
+  def request(conn, body, opts) do
+    {method, url, headers, client_options} = prepare_request(conn, opts)
 
     opts[:client].request(
       method,
@@ -149,13 +150,11 @@ defmodule ReverseProxyPlug do
         do: headers,
         else: List.keyreplace(headers, "host", 0, {"host", options[:host]})
 
-    body = read_body(conn)
-
     client_options =
       options[:response_mode]
       |> get_client_opts(options[:client_options])
 
-    {method, url, body, headers, client_options}
+    {method, url, headers, client_options}
   end
 
   defp get_client_opts(:stream, opts) do
