@@ -148,7 +148,7 @@ defmodule ReverseProxyPlug do
     headers =
       if options[:preserve_host_header],
         do: headers,
-        else: List.keyreplace(headers, "host", 0, {"host", options[:host]})
+        else: List.keyreplace(headers, "host", 0, {"host", host_header_from_url(url)})
 
     client_options =
       options[:response_mode]
@@ -225,5 +225,25 @@ defmodule ReverseProxyPlug do
            fn _ -> nil end
          )}
     end
+  end
+
+  defp host_header_from_url(url) when is_binary(url) do
+    url |> URI.parse() |> host_header_from_url
+  end
+
+  defp host_header_from_url(%URI{host: host, port: nil}) do
+    host
+  end
+
+  defp host_header_from_url(%URI{host: host, port: 80, scheme: "http"}) do
+    host
+  end
+
+  defp host_header_from_url(%URI{host: host, port: 443, scheme: "https"}) do
+    host
+  end
+
+  defp host_header_from_url(%URI{host: host, port: port, scheme: "http"}) do
+    "#{host}:#{port}"
   end
 end

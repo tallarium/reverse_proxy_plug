@@ -74,10 +74,9 @@ defmodule ReverseProxyStreamTest do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, get_mock_request(@end_to_end_headers))
 
-    conn =
-      conn(:get, "/")
-      |> Map.put(:req_headers, @hop_by_hop_headers ++ @end_to_end_headers)
-      |> ReverseProxyPlug.call(@opts)
+    conn(:get, "/")
+    |> Map.put(:req_headers, @hop_by_hop_headers ++ @end_to_end_headers)
+    |> ReverseProxyPlug.call(@opts)
 
     ReverseProxyPlug.HTTPClientMock |> verify!
   end
@@ -146,5 +145,53 @@ defmodule ReverseProxyStreamTest do
         client: ReverseProxyPlug.HTTPClientMock
       )
     )
+  end
+
+  test "include the port in the host header when is not the default and preserve_host_header is false in opts" do
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, get_mock_request([{"host", "example-custom-port.com:8081"}]))
+
+    conn(:get, "/")
+    |> Plug.Conn.put_req_header("host", "custom.com:9999")
+    |> ReverseProxyPlug.call(
+      ReverseProxyPlug.init(
+        upstream: "//example-custom-port.com:8081",
+        client: ReverseProxyPlug.HTTPClientMock
+      )
+    )
+
+    ReverseProxyPlug.HTTPClientMock |> verify!
+  end
+
+  test "don't include the port in the host header when is the default and preserve_host_header is false in opts" do
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, get_mock_request([{"host", "example-custom-port.com"}]))
+
+    conn(:get, "/")
+    |> Plug.Conn.put_req_header("host", "custom.com:9999")
+    |> ReverseProxyPlug.call(
+      ReverseProxyPlug.init(
+        upstream: "//example-custom-port.com:80",
+        client: ReverseProxyPlug.HTTPClientMock
+      )
+    )
+
+    ReverseProxyPlug.HTTPClientMock |> verify!
+  end
+
+  test "don't include the port in the host header when is the default for https and preserve_host_header is false in opts" do
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, get_mock_request([{"host", "example-custom-port.com"}]))
+
+    conn(:get, "/")
+    |> Plug.Conn.put_req_header("host", "custom.com:9999")
+    |> ReverseProxyPlug.call(
+      ReverseProxyPlug.init(
+        upstream: "https://example-custom-port.com:443",
+        client: ReverseProxyPlug.HTTPClientMock
+      )
+    )
+
+    ReverseProxyPlug.HTTPClientMock |> verify!
   end
 end
