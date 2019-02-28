@@ -17,7 +17,7 @@ Add `reverse_proxy_plug` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:reverse_proxy_plug, "~> 1.1.0"}
+    {:reverse_proxy_plug, "~> 1.1.1"}
   ]
 end
 ```
