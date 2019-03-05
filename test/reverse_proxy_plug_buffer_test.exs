@@ -26,7 +26,7 @@ defmodule ReverseProxyBufferTest do
     {"cache-control", "max-age=3600"}
   ]
 
-  defp get_buffer_responder(status \\ 200, headers \\ [], body \\ "Success") do
+  defp get_buffer_responder(status, headers, body \\ "Success") do
     fn _method, _url, _body, _headers, _options ->
       {:ok, %HTTPoison.Response{body: body, headers: headers, status_code: status}}
     end
