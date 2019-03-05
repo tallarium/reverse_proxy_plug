@@ -56,8 +56,17 @@ defmodule ReverseProxyPlug do
     end
 
     conn
-    |> Conn.resp(:bad_gateway, "")
+    |> Conn.resp(status_from_error(error), "")
     |> Conn.send_resp()
+  end
+
+  defp status_from_error({:error, %HTTPoison.Error{id: nil, reason: reason}})
+       when reason in [:timeout, :connect_timeout] do
+    :gateway_timeout
+  end
+
+  defp status_from_error(_any) do
+    :bad_gateway
   end
 
   defp keyword_rename(keywords, old_key, new_key),
