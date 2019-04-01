@@ -1,8 +1,142 @@
-defmodule ReverseProxyStreamTest do
+defmodule ReverseProxyPlugTest do
   use ExUnit.Case
   use Plug.Test
 
   import Mox
+
+  ### BUFFER TEST
+
+  @opts ReverseProxyPlug.init(
+          response_mode: :buffer,
+          upstream: "example.com",
+          client: ReverseProxyPlug.HTTPClientMock
+        )
+
+  @hop_by_hop_headers [
+    {"connection", "keep-alive"},
+    {"keep-alive", "timeout=5, max=1000"},
+    {"upgrade", "h2c"},
+    {"transfer-encoding", "chunked"},
+    {"proxy-authenticate", "Basic"},
+    {"proxy-authorization", "Basic abcd"},
+    {"te", "compress"},
+    {"trailer", "Expires"}
+  ]
+
+  @end_to_end_headers [
+    {"content-length", "42"},
+    {"cache-control", "max-age=3600"}
+  ]
+
+  setup :verify_on_exit!
+
+  defp get_buffer_responder(status, headers, body \\ "Success") do
+    fn _method, _url, _body, _headers, _options ->
+      {:ok, %HTTPoison.Response{body: body, headers: headers, status_code: status}}
+    end
+  end
+
+  test "removes hop-by-hop headers before forwarding request" do
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, get_mock_request(@end_to_end_headers))
+
+    conn(:get, "/")
+    |> Map.put(:req_headers, @hop_by_hop_headers ++ @end_to_end_headers)
+    |> ReverseProxyPlug.call(@opts)
+
+    ReverseProxyPlug.HTTPClientMock |> verify!
+  end
+
+  test "receives buffer response" do
+    headers = [{"host", "example.com"}, {"content-length", "42"}]
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, get_buffer_responder(200, headers, "Success"))
+
+    conn =
+      conn(:get, "/")
+      |> ReverseProxyPlug.call(@opts)
+
+    assert conn.status == 200, "passes status through"
+    assert Enum.all?(headers, fn x -> x in conn.resp_headers end), "passes headers through"
+    assert conn.resp_body == "Success", "passes body through"
+  end
+
+  test "removes hop-by-hop headers from buffer response" do
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, get_buffer_responder(200, @hop_by_hop_headers ++ @end_to_end_headers))
+
+    conn =
+      conn(:get, "/")
+      |> ReverseProxyPlug.call(@opts)
+
+    assert Enum.all?(@hop_by_hop_headers, fn x -> x not in conn.resp_headers end),
+           "deletes hop-by-hop headers"
+
+    assert Enum.all?(@end_to_end_headers, fn x -> x in conn.resp_headers end),
+           "passes other headers through"
+  end
+
+  test "does not add transfer-encoding header to response" do
+    headers = [{"host", "example.com"}, {"content-length", "42"}]
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, get_buffer_responder(200, headers, "Success"))
+
+    conn =
+      conn(:get, "/")
+      |> ReverseProxyPlug.call(@opts)
+
+    resp_header_names =
+      conn.resp_headers
+      |> Enum.map(fn x -> elem(x, 0) end)
+
+    refute "transfer-encoding" in resp_header_names,
+           "does not add transfer-encoding header"
+  end
+
+  ### ERROR TEST
+
+  test "returns bad gateway on error" do
+    error = {:error, :some_reason}
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn _method, _url, _body, _headers, _options ->
+      error
+    end)
+
+    opts = ReverseProxyPlug.init(client: ReverseProxyPlug.HTTPClientMock)
+
+    conn = conn(:get, "/") |> ReverseProxyPlug.call(opts)
+
+    assert conn.status === 502
+
+    ReverseProxyPlug.HTTPClientMock |> verify!
+  end
+
+  test "calls error callback if supplied" do
+    error = {:error, :some_reason}
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn _method, _url, _body, _headers, _options ->
+      error
+    end)
+
+    opts =
+      ReverseProxyPlug.init(
+        error_callback: fn err -> send(self(), {:got_error, err}) end,
+        client: ReverseProxyPlug.HTTPClientMock
+      )
+
+    conn(:get, "/") |> ReverseProxyPlug.call(opts)
+
+    assert_receive({:got_error, error})
+
+    ReverseProxyPlug.HTTPClientMock |> verify!
+  end
+
+  ### STREAM TEST
+
 
   @opts ReverseProxyPlug.init(
           upstream: "example.com",
@@ -57,7 +191,7 @@ defmodule ReverseProxyStreamTest do
     end
   end
 
-  test "receives response" do
+  test "receives stream response" do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, get_stream_responder(200, @host_header, "Success", 2))
 
@@ -70,18 +204,7 @@ defmodule ReverseProxyStreamTest do
     assert conn.resp_body == "Success", "passes body through"
   end
 
-  test "removes hop-by-hop headers before forwarding request" do
-    ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_mock_request(@end_to_end_headers))
-
-    conn(:get, "/")
-    |> Map.put(:req_headers, @hop_by_hop_headers ++ @end_to_end_headers)
-    |> ReverseProxyPlug.call(@opts)
-
-    ReverseProxyPlug.HTTPClientMock |> verify!
-  end
-
-  test "removes hop-by-hop headers from response" do
+  test "removes hop-by-hop headers from stream response" do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, get_stream_responder(200, @hop_by_hop_headers ++ @end_to_end_headers))
 
@@ -193,5 +316,54 @@ defmodule ReverseProxyStreamTest do
     )
 
     ReverseProxyPlug.HTTPClientMock |> verify!
+  end
+
+  ### TIMEOUT TEST
+
+
+  test "returns gateway timeout on connect timeout" do
+    conn = :get |> conn("/") |> simulate_upstream_error(:connect_timeout)
+
+    assert conn.status === 504
+  end
+
+  test "returns gateway timeout on timeout" do
+    conn = :get |> conn("/") |> simulate_upstream_error(:timeout)
+
+    assert conn.status === 504
+  end
+
+  test "passes timeout options to HTTP client" do
+    timeout_val = 5_000
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn _method, _url, _body, _headers, options ->
+      send(self(), {:httpclient_options, options})
+    end)
+
+    opts =
+      ReverseProxyPlug.init(
+        client: ReverseProxyPlug.HTTPClientMock,
+        client_options: [timeout: timeout_val, recv_timeout: timeout_val]
+      )
+
+    :get |> conn("/") |> ReverseProxyPlug.call(opts)
+
+    assert_receive {:httpclient_options, httpclient_options}
+    assert timeout_val == httpclient_options[:timeout]
+    assert timeout_val == httpclient_options[:recv_timeout]
+  end
+
+  defp simulate_upstream_error(conn, reason) do
+    error = {:error, %HTTPoison.Error{id: nil, reason: reason}}
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn _method, _url, _body, _headers, _options ->
+      error
+    end)
+
+    opts = ReverseProxyPlug.init(client: ReverseProxyPlug.HTTPClientMock)
+
+    ReverseProxyPlug.call(conn, opts)
   end
 end
