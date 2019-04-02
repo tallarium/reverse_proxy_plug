@@ -89,8 +89,6 @@ defmodule ReverseProxyPlugTest do
            "does not add transfer-encoding header"
   end
 
-  ### ERROR TEST
-
   test "returns bad gateway on error" do
     error = {:error, :some_reason}
 
@@ -126,39 +124,7 @@ defmodule ReverseProxyPlugTest do
   end
 
 
-  defp get_buffer_responder(status, headers, body \\ "Success") do
-    fn _method, _url, _body, _headers, _options ->
-      {:ok, %HTTPoison.Response{body: body, headers: headers, status_code: status}}
-    end
-  end
 
-  defp get_stream_responder(status \\ 200, headers \\ [], body \\ "Success", no_chunks \\ 1) do
-    fn _method, _url, _body, _headers, _options ->
-      send(self(), %HTTPoison.AsyncStatus{code: status})
-      send(self(), %HTTPoison.AsyncHeaders{headers: headers})
-
-      body
-      |> String.codepoints()
-      |> Enum.chunk_every(body |> String.length() |> div(no_chunks))
-      |> Enum.map(&Enum.join/1)
-      |> Enum.each(fn chunk ->
-        send(self(), %HTTPoison.AsyncChunk{chunk: chunk})
-      end)
-
-      send(self(), %HTTPoison.AsyncEnd{})
-      {:ok, nil}
-    end
-  end
-
-  defp default_stream_responder do
-    get_stream_responder().(nil, nil, nil, nil, nil)
-  end
-
-  defp get_mock_request(expected_headers) do
-    fn _method, _url, _body, headers, _options ->
-      assert headers == expected_headers
-    end
-  end
 
   test "receives stream response" do
     ReverseProxyPlug.HTTPClientMock
@@ -312,6 +278,40 @@ defmodule ReverseProxyPlugTest do
     assert_receive {:httpclient_options, httpclient_options}
     assert timeout_val == httpclient_options[:timeout]
     assert timeout_val == httpclient_options[:recv_timeout]
+  end
+
+  defp get_buffer_responder(status, headers, body \\ "Success") do
+    fn _method, _url, _body, _headers, _options ->
+      {:ok, %HTTPoison.Response{body: body, headers: headers, status_code: status}}
+    end
+  end
+
+  defp get_stream_responder(status \\ 200, headers \\ [], body \\ "Success", no_chunks \\ 1) do
+    fn _method, _url, _body, _headers, _options ->
+      send(self(), %HTTPoison.AsyncStatus{code: status})
+      send(self(), %HTTPoison.AsyncHeaders{headers: headers})
+
+      body
+      |> String.codepoints()
+      |> Enum.chunk_every(body |> String.length() |> div(no_chunks))
+      |> Enum.map(&Enum.join/1)
+      |> Enum.each(fn chunk ->
+        send(self(), %HTTPoison.AsyncChunk{chunk: chunk})
+      end)
+
+      send(self(), %HTTPoison.AsyncEnd{})
+      {:ok, nil}
+    end
+  end
+
+  defp default_stream_responder do
+    get_stream_responder().(nil, nil, nil, nil, nil)
+  end
+
+  defp get_mock_request(expected_headers) do
+    fn _method, _url, _body, headers, _options ->
+      assert headers == expected_headers
+    end
   end
 
   defp simulate_upstream_error(conn, reason) do
