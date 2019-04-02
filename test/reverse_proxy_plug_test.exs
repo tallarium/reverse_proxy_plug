@@ -16,7 +16,6 @@ defmodule ReverseProxyPlugTest do
     {"connection", "keep-alive"},
     {"keep-alive", "timeout=5, max=1000"},
     {"upgrade", "h2c"},
-    {"transfer-encoding", "chunked"},
     {"proxy-authenticate", "Basic"},
     {"proxy-authorization", "Basic abcd"},
     {"te", "compress"},
@@ -24,8 +23,13 @@ defmodule ReverseProxyPlugTest do
   ]
 
   @end_to_end_headers [
-    {"content-length", "42"},
-    {"cache-control", "max-age=3600"}
+    {"cache-control", "max-age=3600"},
+    {"cookie", "acookie"},
+    {"date", "Tue, 15 Nov 1994 08:12:31 GMT"}
+  ]
+
+  @host_header [
+    {"host", "example.com"}
   ]
 
   setup :verify_on_exit!
@@ -123,32 +127,6 @@ defmodule ReverseProxyPlugTest do
     assert_receive({:got_error, error})
   end
 
-  ### STREAM TEST
-
-  @opts ReverseProxyPlug.init(
-          upstream: "example.com",
-          client: ReverseProxyPlug.HTTPClientMock
-        )
-
-  @hop_by_hop_headers [
-    {"connection", "keep-alive"},
-    {"keep-alive", "timeout=5, max=1000"},
-    {"upgrade", "h2c"},
-    {"proxy-authenticate", "Basic"},
-    {"proxy-authorization", "Basic abcd"},
-    {"te", "compress"},
-    {"trailer", "Expires"}
-  ]
-
-  @end_to_end_headers [
-    {"cache-control", "max-age=3600"},
-    {"cookie", "acookie"},
-    {"date", "Tue, 15 Nov 1994 08:12:31 GMT"}
-  ]
-
-  @host_header [
-    {"host", "example.com"}
-  ]
 
   defp get_buffer_responder(status, headers, body \\ "Success") do
     fn _method, _url, _body, _headers, _options ->
@@ -190,7 +168,7 @@ defmodule ReverseProxyPlugTest do
 
     conn =
       conn(:get, "/")
-      |> ReverseProxyPlug.call(@opts)
+      |> ReverseProxyPlug.call(@opts |> Keyword.merge(response_mode: :stream))
 
     assert conn.status == 200, "passes status through"
     assert {"host", "example.com"} in conn.resp_headers, "passes headers through"
@@ -203,7 +181,7 @@ defmodule ReverseProxyPlugTest do
 
     conn =
       conn(:get, "/")
-      |> ReverseProxyPlug.call(@opts)
+      |> ReverseProxyPlug.call(@opts |> Keyword.merge(response_mode: :stream))
 
     assert Enum.all?(@hop_by_hop_headers, fn x -> x not in conn.resp_headers end),
            "deletes hop-by-hop headers"
@@ -218,7 +196,7 @@ defmodule ReverseProxyPlugTest do
 
     conn =
       conn(:get, "/")
-      |> ReverseProxyPlug.call(@opts)
+      |> ReverseProxyPlug.call(@opts |> Keyword.merge(response_mode: :stream))
 
     assert {"transfer-encoding", "chunked"} in conn.resp_headers,
            "sets transfer-encoding header"
@@ -304,8 +282,6 @@ defmodule ReverseProxyPlugTest do
       )
     )
   end
-
-  ### TIMEOUT TEST
 
   test "returns gateway timeout on connect timeout" do
     conn = :get |> conn("/") |> simulate_upstream_error(:connect_timeout)
