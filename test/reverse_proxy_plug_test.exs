@@ -47,6 +47,58 @@ defmodule ReverseProxyPlugTest do
     assert conn.resp_body == "Success", "passes body through"
   end
 
+  test "does not add transfer-encoding header to response" do
+    headers = [{"host", "example.com"}, {"content-length", "42"}]
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, get_buffer_responder(200, headers, "Success"))
+
+    conn =
+      conn(:get, "/")
+      |> ReverseProxyPlug.call(@opts)
+
+    resp_header_names =
+      conn.resp_headers
+      |> Enum.map(fn x -> elem(x, 0) end)
+
+    refute "transfer-encoding" in resp_header_names,
+           "does not add transfer-encoding header"
+  end
+
+  test "receives stream response" do
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, get_stream_responder(200, @host_header, "Success", 2))
+
+    conn =
+      conn(:get, "/")
+      |> ReverseProxyPlug.call(@opts |> Keyword.merge(response_mode: :stream))
+
+    assert conn.status == 200, "passes status through"
+    assert {"host", "example.com"} in conn.resp_headers, "passes headers through"
+    assert conn.resp_body == "Success", "passes body through"
+  end
+
+  test "sets correct chunked transfer-encoding headers" do
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, get_stream_responder(200, [{"content-length", "7"}]))
+
+    conn =
+      conn(:get, "/")
+      |> ReverseProxyPlug.call(@opts |> Keyword.merge(response_mode: :stream))
+
+    assert {"transfer-encoding", "chunked"} in conn.resp_headers,
+           "sets transfer-encoding header"
+
+    resp_header_names =
+      conn.resp_headers
+      |> Enum.map(fn x -> elem(x, 0) end)
+
+    refute "content-length" in resp_header_names,
+           "deletes the content-length header"
+  end
+
+  ### COMMON TESTS
+
   test "removes hop-by-hop headers before forwarding request" do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, get_mock_request(@end_to_end_headers))
@@ -69,24 +121,6 @@ defmodule ReverseProxyPlugTest do
 
     assert Enum.all?(@end_to_end_headers, fn x -> x in conn.resp_headers end),
            "passes other headers through"
-  end
-
-  test "does not add transfer-encoding header to response" do
-    headers = [{"host", "example.com"}, {"content-length", "42"}]
-
-    ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_buffer_responder(200, headers, "Success"))
-
-    conn =
-      conn(:get, "/")
-      |> ReverseProxyPlug.call(@opts)
-
-    resp_header_names =
-      conn.resp_headers
-      |> Enum.map(fn x -> elem(x, 0) end)
-
-    refute "transfer-encoding" in resp_header_names,
-           "does not add transfer-encoding header"
   end
 
   test "returns bad gateway on error" do
@@ -123,18 +157,6 @@ defmodule ReverseProxyPlugTest do
     assert_receive({:got_error, error})
   end
 
-  test "receives stream response" do
-    ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_stream_responder(200, @host_header, "Success", 2))
-
-    conn =
-      conn(:get, "/")
-      |> ReverseProxyPlug.call(@opts |> Keyword.merge(response_mode: :stream))
-
-    assert conn.status == 200, "passes status through"
-    assert {"host", "example.com"} in conn.resp_headers, "passes headers through"
-    assert conn.resp_body == "Success", "passes body through"
-  end
 
   test "removes hop-by-hop headers from stream response" do
     ReverseProxyPlug.HTTPClientMock
@@ -149,25 +171,6 @@ defmodule ReverseProxyPlugTest do
 
     assert Enum.all?(@end_to_end_headers, fn x -> x in conn.resp_headers end),
            "passes other headers through"
-  end
-
-  test "sets correct chunked transfer-encoding headers" do
-    ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_stream_responder(200, [{"content-length", "7"}]))
-
-    conn =
-      conn(:get, "/")
-      |> ReverseProxyPlug.call(@opts |> Keyword.merge(response_mode: :stream))
-
-    assert {"transfer-encoding", "chunked"} in conn.resp_headers,
-           "sets transfer-encoding header"
-
-    resp_header_names =
-      conn.resp_headers
-      |> Enum.map(fn x -> elem(x, 0) end)
-
-    refute "content-length" in resp_header_names,
-           "deletes the content-length header"
   end
 
   test "handles request path and query string" do
