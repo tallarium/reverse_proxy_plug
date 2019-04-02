@@ -45,7 +45,6 @@ defmodule ReverseProxyPlugTest do
     assert conn.resp_body == "Success", "passes body through"
   end
 
-
   test "removes hop-by-hop headers before forwarding request" do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, get_mock_request(@end_to_end_headers))
@@ -53,8 +52,6 @@ defmodule ReverseProxyPlugTest do
     conn(:get, "/")
     |> Map.put(:req_headers, @hop_by_hop_headers ++ @end_to_end_headers)
     |> ReverseProxyPlug.call(@opts)
-
-    ReverseProxyPlug.HTTPClientMock |> verify!
   end
 
   test "removes hop-by-hop headers from buffer response" do
@@ -105,8 +102,6 @@ defmodule ReverseProxyPlugTest do
     conn = conn(:get, "/") |> ReverseProxyPlug.call(opts)
 
     assert conn.status === 502
-
-    ReverseProxyPlug.HTTPClientMock |> verify!
   end
 
   test "calls error callback if supplied" do
@@ -126,12 +121,9 @@ defmodule ReverseProxyPlugTest do
     conn(:get, "/") |> ReverseProxyPlug.call(opts)
 
     assert_receive({:got_error, error})
-
-    ReverseProxyPlug.HTTPClientMock |> verify!
   end
 
   ### STREAM TEST
-
 
   @opts ReverseProxyPlug.init(
           upstream: "example.com",
@@ -163,7 +155,6 @@ defmodule ReverseProxyPlugTest do
       {:ok, %HTTPoison.Response{body: body, headers: headers, status_code: status}}
     end
   end
-
 
   defp get_stream_responder(status \\ 200, headers \\ [], body \\ "Success", no_chunks \\ 1) do
     fn _method, _url, _body, _headers, _options ->
@@ -284,8 +275,6 @@ defmodule ReverseProxyPlugTest do
         client: ReverseProxyPlug.HTTPClientMock
       )
     )
-
-    ReverseProxyPlug.HTTPClientMock |> verify!
   end
 
   test "don't include the port in the host header when is the default and preserve_host_header is false in opts" do
@@ -300,8 +289,6 @@ defmodule ReverseProxyPlugTest do
         client: ReverseProxyPlug.HTTPClientMock
       )
     )
-
-    ReverseProxyPlug.HTTPClientMock |> verify!
   end
 
   test "don't include the port in the host header when is the default for https and preserve_host_header is false in opts" do
@@ -316,12 +303,9 @@ defmodule ReverseProxyPlugTest do
         client: ReverseProxyPlug.HTTPClientMock
       )
     )
-
-    ReverseProxyPlug.HTTPClientMock |> verify!
   end
 
   ### TIMEOUT TEST
-
 
   test "returns gateway timeout on connect timeout" do
     conn = :get |> conn("/") |> simulate_upstream_error(:connect_timeout)
