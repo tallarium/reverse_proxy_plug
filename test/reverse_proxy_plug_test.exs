@@ -4,8 +4,6 @@ defmodule ReverseProxyPlugTest do
 
   import Mox
 
-  ### BUFFER TEST
-
   @opts ReverseProxyPlug.init(
           response_mode: :buffer,
           upstream: "example.com",
