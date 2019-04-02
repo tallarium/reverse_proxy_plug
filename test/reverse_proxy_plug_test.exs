@@ -123,9 +123,6 @@ defmodule ReverseProxyPlugTest do
     assert_receive({:got_error, error})
   end
 
-
-
-
   test "receives stream response" do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, get_stream_responder(200, @host_header, "Success", 2))
