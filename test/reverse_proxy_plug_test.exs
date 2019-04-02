@@ -65,6 +65,24 @@ defmodule ReverseProxyPlugTest do
            "does not add transfer-encoding header"
   end
 
+  test "does not add transfer-encoding header to response if request was chunk encoded" do
+    headers = [{"host", "example.com"}, {"transfer-encoding", "chunked"}]
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, get_buffer_responder(200, headers, "Success"))
+
+    conn =
+      conn(:get, "/")
+      |> ReverseProxyPlug.call(@opts)
+
+    resp_header_names =
+      conn.resp_headers
+      |> Enum.map(fn x -> elem(x, 0) end)
+
+    refute "transfer-encoding" in resp_header_names,
+           "does not add transfer-encoding header"
+  end
+
   test "receives stream response" do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, get_stream_responder(200, @host_header, "Success", 2))
