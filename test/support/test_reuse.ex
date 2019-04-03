@@ -27,19 +27,19 @@ defmodule TestReuse do
 
   defmacro test_stream_and_buffer(message, body) do
     quote do
-      test unquote(message) <> " (buffer)" do
+      test unquote(message) <> " (stream)" do
         var!(test_reuse_opts) = %{
-          opts: [response_mode: :buffer] ++ unquote(@default_opts),
-          get_responder: &TestReuse.get_buffer_responder/3
+          opts: [response_mode: :stream] ++ unquote(@default_opts),
+          get_responder: &TestReuse.get_stream_responder/3
         }
 
         unquote(body)
       end
 
-      test unquote(message) <> " (stream)" do
+      test unquote(message) <> " (buffer)" do
         var!(test_reuse_opts) = %{
-          opts: [response_mode: :stream] ++ unquote(@default_opts),
-          get_responder: &TestReuse.get_stream_responder/3
+          opts: [response_mode: :buffer] ++ unquote(@default_opts),
+          get_responder: &TestReuse.get_buffer_responder/3
         }
 
         unquote(body)
