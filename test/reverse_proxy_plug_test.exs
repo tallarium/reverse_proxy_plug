@@ -36,11 +36,13 @@ defmodule ReverseProxyPlugTest do
     headers = [{"host", "example.com"}, {"content-length", "42"}]
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_buffer_responder(200, headers, "Success"))
+    |> expect(:request, TestReuse.get_buffer_responder(200, headers, "Success"))
 
     conn =
       conn(:get, "/")
-      |> ReverseProxyPlug.call(ReverseProxyPlug.init(Keyword.merge(@opts, response_mode: :buffer)))
+      |> ReverseProxyPlug.call(
+        ReverseProxyPlug.init(Keyword.merge(@opts, response_mode: :buffer))
+      )
 
     assert conn.status == 200, "passes status through"
     assert Enum.all?(headers, fn x -> x in conn.resp_headers end), "passes headers through"
@@ -51,11 +53,13 @@ defmodule ReverseProxyPlugTest do
     headers = [{"host", "example.com"}, {"content-length", "42"}]
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_buffer_responder(200, headers, "Success"))
+    |> expect(:request, TestReuse.get_buffer_responder(200, headers, "Success"))
 
     conn =
       conn(:get, "/")
-      |> ReverseProxyPlug.call(ReverseProxyPlug.init(Keyword.merge(@opts, response_mode: :buffer)))
+      |> ReverseProxyPlug.call(
+        ReverseProxyPlug.init(Keyword.merge(@opts, response_mode: :buffer))
+      )
 
     resp_header_names =
       conn.resp_headers
@@ -69,11 +73,13 @@ defmodule ReverseProxyPlugTest do
     headers = [{"host", "example.com"}, {"transfer-encoding", "chunked"}]
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_buffer_responder(200, headers, "Success"))
+    |> expect(:request, TestReuse.get_buffer_responder(200, headers, "Success"))
 
     conn =
       conn(:get, "/")
-      |> ReverseProxyPlug.call(ReverseProxyPlug.init(Keyword.merge(@opts, response_mode: :buffer)))
+      |> ReverseProxyPlug.call(
+        ReverseProxyPlug.init(Keyword.merge(@opts, response_mode: :buffer))
+      )
 
     resp_header_names =
       conn.resp_headers
@@ -85,7 +91,7 @@ defmodule ReverseProxyPlugTest do
 
   test "receives stream response" do
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_stream_responder(200, @host_header, "Success"))
+    |> expect(:request, TestReuse.get_stream_responder(200, @host_header, "Success"))
 
     conn =
       conn(:get, "/")
@@ -98,7 +104,7 @@ defmodule ReverseProxyPlugTest do
 
   test "sets correct chunked transfer-encoding headers" do
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_stream_responder(200, [{"content-length", "7"}], "Success"))
+    |> expect(:request, TestReuse.get_stream_responder(200, [{"content-length", "7"}], "Success"))
 
     conn =
       conn(:get, "/")
@@ -314,30 +320,6 @@ defmodule ReverseProxyPlugTest do
     assert_receive {:httpclient_options, httpclient_options}
     assert timeout_val == httpclient_options[:timeout]
     assert timeout_val == httpclient_options[:recv_timeout]
-  end
-
-  defp get_buffer_responder(status, headers, body) do
-    fn _method, _url, _body, _headers, _options ->
-      {:ok, %HTTPoison.Response{status_code: status, headers: headers, body: body}}
-    end
-  end
-
-  defp get_stream_responder(status, headers, body) do
-    fn _method, _url, _body, _headers, _options ->
-      send(self(), %HTTPoison.AsyncStatus{code: status})
-      send(self(), %HTTPoison.AsyncHeaders{headers: headers})
-
-      body
-      |> String.codepoints()
-      |> Enum.chunk_every(body |> String.length() |> div(3))
-      |> Enum.map(&Enum.join/1)
-      |> Enum.each(fn chunk ->
-        send(self(), %HTTPoison.AsyncChunk{chunk: chunk})
-      end)
-
-      send(self(), %HTTPoison.AsyncEnd{})
-      {:ok, nil}
-    end
   end
 
   defp simulate_upstream_error(conn, reason, opts) do
