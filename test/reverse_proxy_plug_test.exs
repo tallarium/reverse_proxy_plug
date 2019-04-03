@@ -1,4 +1,5 @@
 defmodule ReverseProxyPlugTest do
+  import TestReuse, only: :macros
   use ExUnit.Case
   use Plug.Test
 
@@ -117,15 +118,18 @@ defmodule ReverseProxyPlugTest do
 
   ### COMMON TESTS
 
-  test "removes hop-by-hop headers before forwarding request" do
+  test_stream_and_buffer "removes hop-by-hop headers before forwarding request" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _method, _url, _body, headers, _options ->
       send(self(), {:headers, headers})
+      get_responder.(200, "Success", [])
     end)
 
     conn(:get, "/")
     |> Map.put(:req_headers, @hop_by_hop_headers ++ @end_to_end_headers)
-    |> ReverseProxyPlug.call(@opts)
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts))
 
     assert_receive {:headers, headers}
     assert @end_to_end_headers == headers
