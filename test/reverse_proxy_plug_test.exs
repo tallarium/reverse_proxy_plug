@@ -119,11 +119,16 @@ defmodule ReverseProxyPlugTest do
 
   test "removes hop-by-hop headers before forwarding request" do
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_mock_request(@end_to_end_headers))
+    |> expect(:request, fn _method, _url, _body, headers, _options ->
+      send(self(), {:headers, headers})
+    end)
 
     conn(:get, "/")
     |> Map.put(:req_headers, @hop_by_hop_headers ++ @end_to_end_headers)
     |> ReverseProxyPlug.call(@opts)
+
+    assert_receive {:headers, headers}
+    assert @end_to_end_headers == headers
   end
 
   test "removes hop-by-hop headers from buffer response" do
@@ -175,7 +180,6 @@ defmodule ReverseProxyPlugTest do
     assert_receive({:got_error, error})
   end
 
-
   test "removes hop-by-hop headers from stream response" do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, get_stream_responder(200, @hop_by_hop_headers ++ @end_to_end_headers))
@@ -225,7 +229,9 @@ defmodule ReverseProxyPlugTest do
 
   test "include the port in the host header when is not the default and preserve_host_header is false in opts" do
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_mock_request([{"host", "example-custom-port.com:8081"}]))
+    |> expect(:request, fn _method, _url, _body, headers, _options ->
+      send(self(), {:headers, headers})
+    end)
 
     conn(:get, "/")
     |> Plug.Conn.put_req_header("host", "custom.com:9999")
@@ -235,11 +241,16 @@ defmodule ReverseProxyPlugTest do
         client: ReverseProxyPlug.HTTPClientMock
       )
     )
+
+    assert_receive {:headers, headers}
+    assert [{"host", "example-custom-port.com:8081"}] == headers
   end
 
   test "don't include the port in the host header when is the default and preserve_host_header is false in opts" do
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_mock_request([{"host", "example-custom-port.com"}]))
+    |> expect(:request, fn _method, _url, _body, headers, _options ->
+      send(self(), {:headers, headers})
+    end)
 
     conn(:get, "/")
     |> Plug.Conn.put_req_header("host", "custom.com:9999")
@@ -249,11 +260,16 @@ defmodule ReverseProxyPlugTest do
         client: ReverseProxyPlug.HTTPClientMock
       )
     )
+
+    assert_receive {:headers, headers}
+    assert [{"host", "example-custom-port.com"}] == headers
   end
 
   test "don't include the port in the host header when is the default for https and preserve_host_header is false in opts" do
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_mock_request([{"host", "example-custom-port.com"}]))
+    |> expect(:request, fn _method, _url, _body, headers, _options ->
+      send(self(), {:headers, headers})
+    end)
 
     conn(:get, "/")
     |> Plug.Conn.put_req_header("host", "custom.com:9999")
@@ -263,6 +279,9 @@ defmodule ReverseProxyPlugTest do
         client: ReverseProxyPlug.HTTPClientMock
       )
     )
+
+    assert_receive {:headers, headers}
+    assert [{"host", "example-custom-port.com"}] == headers
   end
 
   test "returns gateway timeout on connect timeout" do
@@ -330,12 +349,6 @@ defmodule ReverseProxyPlugTest do
 
   defp default_stream_responder do
     get_stream_responder().(nil, nil, nil, nil, nil)
-  end
-
-  defp get_mock_request(expected_headers) do
-    fn _method, _url, _body, headers, _options ->
-      assert headers == expected_headers
-    end
   end
 
   defp simulate_upstream_error(conn, reason) do
