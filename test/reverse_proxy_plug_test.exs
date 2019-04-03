@@ -85,7 +85,7 @@ defmodule ReverseProxyPlugTest do
 
   test "receives stream response" do
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_stream_responder(200, @host_header, "Success", 2))
+    |> expect(:request, get_stream_responder(200, @host_header, "Success"))
 
     conn =
       conn(:get, "/")
@@ -98,7 +98,7 @@ defmodule ReverseProxyPlugTest do
 
   test "sets correct chunked transfer-encoding headers" do
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, get_stream_responder(200, [{"content-length", "7"}]))
+    |> expect(:request, get_stream_responder(200, [{"content-length", "7"}], "Success"))
 
     conn =
       conn(:get, "/")
@@ -322,14 +322,14 @@ defmodule ReverseProxyPlugTest do
     end
   end
 
-  defp get_stream_responder(status \\ 200, headers \\ [], body \\ "Success", no_chunks \\ 1) do
+  defp get_stream_responder(status, headers, body) do
     fn _method, _url, _body, _headers, _options ->
       send(self(), %HTTPoison.AsyncStatus{code: status})
       send(self(), %HTTPoison.AsyncHeaders{headers: headers})
 
       body
       |> String.codepoints()
-      |> Enum.chunk_every(body |> String.length() |> div(no_chunks))
+      |> Enum.chunk_every(body |> String.length() |> div(3))
       |> Enum.map(&Enum.join/1)
       |> Enum.each(fn chunk ->
         send(self(), %HTTPoison.AsyncChunk{chunk: chunk})
