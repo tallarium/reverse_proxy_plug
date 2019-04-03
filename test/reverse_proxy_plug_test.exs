@@ -5,11 +5,10 @@ defmodule ReverseProxyPlugTest do
 
   import Mox
 
-  @opts ReverseProxyPlug.init(
-          response_mode: :buffer,
-          upstream: "example.com",
-          client: ReverseProxyPlug.HTTPClientMock
-        )
+  @opts [
+    upstream: "example.com",
+    client: ReverseProxyPlug.HTTPClientMock
+  ]
 
   @hop_by_hop_headers [
     {"connection", "keep-alive"},
@@ -41,7 +40,7 @@ defmodule ReverseProxyPlugTest do
 
     conn =
       conn(:get, "/")
-      |> ReverseProxyPlug.call(@opts)
+      |> ReverseProxyPlug.call(ReverseProxyPlug.init(Keyword.merge(@opts, response_mode: :buffer)))
 
     assert conn.status == 200, "passes status through"
     assert Enum.all?(headers, fn x -> x in conn.resp_headers end), "passes headers through"
@@ -56,7 +55,7 @@ defmodule ReverseProxyPlugTest do
 
     conn =
       conn(:get, "/")
-      |> ReverseProxyPlug.call(@opts)
+      |> ReverseProxyPlug.call(ReverseProxyPlug.init(Keyword.merge(@opts, response_mode: :buffer)))
 
     resp_header_names =
       conn.resp_headers
@@ -74,7 +73,7 @@ defmodule ReverseProxyPlugTest do
 
     conn =
       conn(:get, "/")
-      |> ReverseProxyPlug.call(@opts)
+      |> ReverseProxyPlug.call(ReverseProxyPlug.init(Keyword.merge(@opts, response_mode: :buffer)))
 
     resp_header_names =
       conn.resp_headers
@@ -90,7 +89,7 @@ defmodule ReverseProxyPlugTest do
 
     conn =
       conn(:get, "/")
-      |> ReverseProxyPlug.call(@opts |> Keyword.merge(response_mode: :stream))
+      |> ReverseProxyPlug.call(ReverseProxyPlug.init(@opts))
 
     assert conn.status == 200, "passes status through"
     assert {"host", "example.com"} in conn.resp_headers, "passes headers through"
@@ -103,7 +102,7 @@ defmodule ReverseProxyPlugTest do
 
     conn =
       conn(:get, "/")
-      |> ReverseProxyPlug.call(@opts |> Keyword.merge(response_mode: :stream))
+      |> ReverseProxyPlug.call(ReverseProxyPlug.init(@opts))
 
     assert {"transfer-encoding", "chunked"} in conn.resp_headers,
            "sets transfer-encoding header"
@@ -319,7 +318,7 @@ defmodule ReverseProxyPlugTest do
 
   defp get_buffer_responder(status, headers, body) do
     fn _method, _url, _body, _headers, _options ->
-      {:ok, %HTTPoison.Response{status_code: status,headers: headers, body: body }}
+      {:ok, %HTTPoison.Response{status_code: status, headers: headers, body: body}}
     end
   end
 
