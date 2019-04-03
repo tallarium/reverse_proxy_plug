@@ -2,13 +2,13 @@ defmodule TestReuse do
   @default_opts upstream: "example.com", client: ReverseProxyPlug.HTTPClientMock
 
   def get_buffer_responder(status, headers, body) do
-    fn _method, _url, _body, _headers, _options ->
+    fn _request ->
       {:ok, %HTTPoison.Response{status_code: status, headers: headers, body: body}}
     end
   end
 
   def get_stream_responder(status, headers, body) do
-    fn _method, _url, _body, _headers, _options ->
+    fn _request ->
       send(self(), %HTTPoison.AsyncStatus{code: status})
       send(self(), %HTTPoison.AsyncHeaders{headers: headers})
 

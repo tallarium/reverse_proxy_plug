@@ -125,9 +125,9 @@ defmodule ReverseProxyPlugTest do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, fn method, url, body, headers, options ->
+    |> expect(:request, fn %{headers: headers} = request ->
       send(self(), {:headers, headers})
-      get_responder.(200, [], "Success").(method, url, body, headers, options)
+      get_responder.(200, [], "Success").(request)
     end)
 
     conn(:get, "/")
@@ -163,7 +163,7 @@ defmodule ReverseProxyPlugTest do
     error = {:error, :some_reason}
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, fn _method, _url, _body, _headers, _options ->
+    |> expect(:request, fn _request ->
       error
     end)
 
@@ -177,7 +177,7 @@ defmodule ReverseProxyPlugTest do
     error = {:error, :some_reason}
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, fn _method, _url, _body, _headers, _options ->
+    |> expect(:request, fn _request ->
       error
     end)
 
@@ -195,9 +195,9 @@ defmodule ReverseProxyPlugTest do
     opts_with_upstream = Keyword.merge(opts, upstream: "//example.com/root_upstream?query=yes")
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, fn method, url, body, headers, options ->
+    |> expect(:request, fn %{url: url} = request ->
       send(self(), {:url, url})
-      get_responder.(200, [], "Success").(method, url, body, headers, options)
+      get_responder.(200, [], "Success").(request)
     end)
 
     conn(:get, "/root_path")
@@ -212,9 +212,9 @@ defmodule ReverseProxyPlugTest do
     opts_with_upstream = Keyword.merge(opts, upstream: "//example.com")
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, fn method, url, body, headers, options ->
+    |> expect(:request, fn %{url: url} = request ->
       send(self(), {:url, url})
-      get_responder.(200, [], "Success").(method, url, body, headers, options)
+      get_responder.(200, [], "Success").(request)
     end)
 
     conn(:get, "/root_path/")
@@ -229,9 +229,9 @@ defmodule ReverseProxyPlugTest do
     opts_with_upstream = Keyword.merge(opts, upstream: "//example-custom-port.com:8081")
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, fn method, url, body, headers, options ->
+    |> expect(:request, fn %{headers: headers} = request ->
       send(self(), {:headers, headers})
-      get_responder.(200, [], "Success").(method, url, body, headers, options)
+      get_responder.(200, [], "Success").(request)
     end)
 
     conn(:get, "/")
@@ -247,9 +247,9 @@ defmodule ReverseProxyPlugTest do
     opts_with_upstream = Keyword.merge(opts, upstream: "//example-custom-port.com:80")
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, fn method, url, body, headers, options ->
+    |> expect(:request, fn %{headers: headers} = request ->
       send(self(), {:headers, headers})
-      get_responder.(200, [], "Success").(method, url, body, headers, options)
+      get_responder.(200, [], "Success").(request)
     end)
 
     conn(:get, "/")
@@ -265,9 +265,9 @@ defmodule ReverseProxyPlugTest do
     opts_with_upstream = Keyword.merge(opts, upstream: "https://example-custom-port.com:443")
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, fn method, url, body, headers, options ->
+    |> expect(:request, fn %{headers: headers} = request ->
       send(self(), {:headers, headers})
-      get_responder.(200, [], "Success").(method, url, body, headers, options)
+      get_responder.(200, [], "Success").(request)
     end)
 
     conn(:get, "/")
@@ -310,9 +310,9 @@ defmodule ReverseProxyPlugTest do
       Keyword.merge(opts, client_options: [timeout: timeout_val, recv_timeout: timeout_val])
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, fn method, url, body, headers, options ->
+    |> expect(:request, fn %{options: options} = request ->
       send(self(), {:httpclient_options, options})
-      get_responder.(200, [], "Success").(method, url, body, headers, options)
+      get_responder.(200, [], "Success").(request)
     end)
 
     :get |> conn("/") |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_client_options))
@@ -326,7 +326,7 @@ defmodule ReverseProxyPlugTest do
     error = {:error, %HTTPoison.Error{id: nil, reason: reason}}
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, fn _method, _url, _body, _headers, _options ->
+    |> expect(:request, fn _request ->
       error
     end)
 
