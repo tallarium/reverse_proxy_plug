@@ -198,7 +198,7 @@ defmodule ReverseProxyPlugTest do
   test "handles request path and query string" do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _method, url, _body, _headers, _options ->
-      assert url == "http://example.com:80/root_upstream/root_path?query=yes"
+      send(self(), {:url, url})
       default_stream_responder()
     end)
 
@@ -209,6 +209,9 @@ defmodule ReverseProxyPlugTest do
         client: ReverseProxyPlug.HTTPClientMock
       )
     )
+
+    assert_receive {:url, url}
+    assert "http://example.com:80/root_upstream/root_path?query=yes" == url
   end
 
   test "preserves trailing slash at the end of request path" do
