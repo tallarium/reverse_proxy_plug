@@ -277,6 +277,12 @@ defmodule ReverseProxyPlugTest do
     assert conn.status === 504
   end
 
+  test "returns gateway error on a generic error" do
+    conn = :get |> conn("/") |> simulate_upstream_error(:some_error)
+
+    assert conn.status === 502
+  end
+
   test "passes timeout options to HTTP client" do
     timeout_val = 5_000
 
