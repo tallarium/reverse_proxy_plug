@@ -6,7 +6,7 @@ defmodule TestReuse do
       test unquote(message) <> " (buffer)" do
         var!(test_reuse_opts) = %{
           opts: [response_mode: :buffer] ++ unquote(@default_opts),
-          get_responder: fn status, body, headers ->
+          get_responder: fn status, headers, body ->
             fn _method, _url, _body, _headers, _options ->
               {:ok, %HTTPoison.Response{body: body, headers: headers, status_code: status}}
             end
@@ -19,7 +19,7 @@ defmodule TestReuse do
       test unquote(message) <> " (stream)" do
         var!(test_reuse_opts) = %{
           opts: [response_mode: :stream] ++ unquote(@default_opts),
-          get_responder: fn status, body, headers ->
+          get_responder: fn status, headers, body ->
             fn _method, _url, _body, _headers, _options ->
               send(self(), %HTTPoison.AsyncStatus{code: status})
               send(self(), %HTTPoison.AsyncHeaders{headers: headers})

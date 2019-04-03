@@ -120,9 +120,9 @@ defmodule ReverseProxyPlugTest do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, fn _method, _url, _body, headers, _options ->
+    |> expect(:request, fn method, url, body, headers, options ->
       send(self(), {:headers, headers})
-      get_responder.(200, "Success", [])
+      get_responder.(200, [], "Success").(method, url, body, headers, options)
     end)
 
     conn(:get, "/")
@@ -139,7 +139,7 @@ defmodule ReverseProxyPlugTest do
     ReverseProxyPlug.HTTPClientMock
     |> expect(
       :request,
-      get_responder.(200, "Success!", @hop_by_hop_headers ++ @end_to_end_headers)
+      get_responder.(200, @hop_by_hop_headers ++ @end_to_end_headers, "Success!")
     )
 
     conn =
@@ -192,7 +192,7 @@ defmodule ReverseProxyPlugTest do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn method, url, body, headers, options ->
       send(self(), {:url, url})
-      get_responder.(200, "Success", []).(method, url, body, headers, options)
+      get_responder.(200, [], "Success").(method, url, body, headers, options)
     end)
 
     conn(:get, "/root_path")
@@ -209,7 +209,7 @@ defmodule ReverseProxyPlugTest do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn method, url, body, headers, options ->
       send(self(), {:url, url})
-      get_responder.(200, "Success", []).(method, url, body, headers, options)
+      get_responder.(200, [], "Success").(method, url, body, headers, options)
     end)
 
     conn(:get, "/root_path/")
@@ -226,7 +226,7 @@ defmodule ReverseProxyPlugTest do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn method, url, body, headers, options ->
       send(self(), {:headers, headers})
-      get_responder.(200, "Success", []).(method, url, body, headers, options)
+      get_responder.(200, [], "Success").(method, url, body, headers, options)
     end)
 
     conn(:get, "/")
@@ -244,7 +244,7 @@ defmodule ReverseProxyPlugTest do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn method, url, body, headers, options ->
       send(self(), {:headers, headers})
-      get_responder.(200, "Success", []).(method, url, body, headers, options)
+      get_responder.(200, [], "Success").(method, url, body, headers, options)
     end)
 
     conn(:get, "/")
@@ -262,7 +262,7 @@ defmodule ReverseProxyPlugTest do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn method, url, body, headers, options ->
       send(self(), {:headers, headers})
-      get_responder.(200, "Success", []).(method, url, body, headers, options)
+      get_responder.(200, [], "Success").(method, url, body, headers, options)
     end)
 
     conn(:get, "/")
@@ -307,7 +307,7 @@ defmodule ReverseProxyPlugTest do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn method, url, body, headers, options ->
       send(self(), {:httpclient_options, options})
-      get_responder.(200, "Success", []).(method, url, body, headers, options)
+      get_responder.(200, [], "Success").(method, url, body, headers, options)
     end)
 
     :get |> conn("/") |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_client_options))
@@ -319,7 +319,7 @@ defmodule ReverseProxyPlugTest do
 
   defp get_buffer_responder(status, headers, body) do
     fn _method, _url, _body, _headers, _options ->
-      {:ok, %HTTPoison.Response{body: body, headers: headers, status_code: status}}
+      {:ok, %HTTPoison.Response{status_code: status,headers: headers, body: body }}
     end
   end
 
