@@ -63,7 +63,7 @@ defmodule ReverseProxyPlugTest do
 
     resp_header_names =
       conn.resp_headers
-      |> Enum.map(fn x -> elem(x, 0) end)
+      |> Enum.map(fn {name, _val} -> name end)
 
     refute "transfer-encoding" in resp_header_names,
            "does not add transfer-encoding header"
@@ -83,7 +83,7 @@ defmodule ReverseProxyPlugTest do
 
     resp_header_names =
       conn.resp_headers
-      |> Enum.map(fn x -> elem(x, 0) end)
+      |> Enum.map(fn {name, _val} -> name end)
 
     refute "transfer-encoding" in resp_header_names,
            "does not add transfer-encoding header"
@@ -115,7 +115,7 @@ defmodule ReverseProxyPlugTest do
 
     resp_header_names =
       conn.resp_headers
-      |> Enum.map(fn x -> elem(x, 0) end)
+      |> Enum.map(fn {name, _val} -> name end)
 
     refute "content-length" in resp_header_names,
            "deletes the content-length header"
