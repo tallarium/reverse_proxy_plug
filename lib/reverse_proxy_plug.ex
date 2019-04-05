@@ -35,13 +35,13 @@ defmodule ReverseProxyPlug do
   def request(conn, body, opts) do
     {method, url, headers, client_options} = prepare_request(conn, opts)
 
-    opts[:client].request(
-      method,
-      url,
-      body,
-      headers,
-      client_options
-    )
+    opts[:client].request(%HTTPoison.Request{
+      method: method,
+      url: url,
+      body: body,
+      headers: headers,
+      options: client_options
+    })
   end
 
   def response({:ok, resp}, conn, opts) do
