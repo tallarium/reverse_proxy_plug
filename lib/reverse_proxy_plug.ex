@@ -206,8 +206,11 @@ defmodule ReverseProxyPlug do
     |> Enum.reject(fn {header, _} -> Enum.member?(hop_by_hop_headers, header) end)
   end
 
-  defp read_body(conn) do
+  def read_body(conn) do
     case Conn.read_body(conn) do
+      {:ok, body, %{params: params}} when is_map(params) and map_size(params) > 0 ->
+        body <> "&" <> Conn.Query.encode(params)
+
       {:ok, body, _conn} ->
         body
 
