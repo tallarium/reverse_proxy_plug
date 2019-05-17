@@ -121,10 +121,25 @@ defmodule ReverseProxyPlugTest do
            "deletes the content-length header"
   end
 
-  test "adds params to the request's body on post" do
+  test "appends params to the request's body" do
     body = ReverseProxyPlug.read_body(conn(:post, "/users", %{"user" => %{"name" => "Jane Doe"}}))
 
-    assert body =~ "user[name]=Jane+Doe"
+    assert body == "--plug_conn_test--&user[name]=Jane+Doe"
+  end
+
+  test "appends params and query string params to the request's body" do
+    body =
+      ReverseProxyPlug.read_body(
+        conn(:post, "/users?type=customer", %{"user" => %{"name" => "Jane Doe"}})
+      )
+
+    assert body == "--plug_conn_test--&type=customer&user[name]=Jane+Doe"
+  end
+
+  test "does not append `&` to the reqeust's body if params are not provide" do
+    body = ReverseProxyPlug.read_body(conn(:post, "/users", %{}))
+
+    refute body =~ "&"
   end
 
   test_stream_and_buffer "removes hop-by-hop headers before forwarding request" do

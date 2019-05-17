@@ -209,7 +209,8 @@ defmodule ReverseProxyPlug do
   def read_body(conn) do
     case Conn.read_body(conn) do
       {:ok, body, %{params: params}} when is_map(params) and map_size(params) > 0 ->
-        body <> "&" <> Conn.Query.encode(params)
+        conn = Plug.Conn.fetch_query_params(conn)
+        body <> "&" <> Conn.Query.encode(conn.params)
 
       {:ok, body, _conn} ->
         body
