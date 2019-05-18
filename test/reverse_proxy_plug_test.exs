@@ -121,6 +121,22 @@ defmodule ReverseProxyPlugTest do
            "deletes the content-length header"
   end
 
+  test "uses raw_body from assigns if body empty and raw_body present" do
+    raw_body = "name=Jane"
+    conn = conn(:post, "/users", nil)
+    conn = update_in(conn.assigns[:raw_body], fn _ -> raw_body end)
+
+    assert ReverseProxyPlug.read_body(conn) == raw_body
+  end
+
+  test "uses body when not empty even if raw_body provided" do
+    raw_body = "name=Jane"
+    conn = conn(:post, "/users", "not raw body")
+    conn = update_in(conn.assigns[:raw_body], fn _ -> raw_body end)
+
+    assert ReverseProxyPlug.read_body(conn) == "not raw body"
+  end
+
   test_stream_and_buffer "removes hop-by-hop headers before forwarding request" do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
 
