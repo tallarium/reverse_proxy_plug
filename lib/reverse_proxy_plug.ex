@@ -213,6 +213,13 @@ defmodule ReverseProxyPlug do
     headers =
       conn.req_headers
       |> normalize_headers
+      
+    headers =
+    if is_list(options[:client_headers]),
+        do:
+        Map.merge(Enum.into(headers, %{}), Enum.into(options[:client_headers], %{}))
+        |> Map.to_list,
+        else: headers
 
     headers =
       if options[:preserve_host_header],
