@@ -258,4 +258,8 @@ defmodule ReverseProxyPlug do
   defp host_header_from_url(%URI{host: host, port: port, scheme: "http"}) do
     "#{host}:#{port}"
   end
+
+  defp host_header_from_url(%URI{host: host, port: port, scheme: "https"}) do
+    "#{host}:#{port}"
+  end
 end
