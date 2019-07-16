@@ -130,8 +130,12 @@ defmodule ReverseProxyPlug do
       |> Enum.filter(fn {key, _} -> key in keys end)
       |> Keyword.merge(Enum.filter(overrides, fn {_, val} -> val end))
 
-    request_path = Enum.join(conn.path_info, "/")
-    request_path = Path.join(overrides[:request_path] || "/", request_path)
+    request_path =
+      if overrides[:request_path] do
+        overrides[:request_path]
+      else
+        Enum.join(conn.path_info, "/")
+      end
 
     request_path =
       if String.ends_with?(conn.request_path, "/"),
@@ -256,10 +260,6 @@ defmodule ReverseProxyPlug do
   end
 
   defp host_header_from_url(%URI{host: host, port: port, scheme: "http"}) do
-    "#{host}:#{port}"
-  end
-
-  defp host_header_from_url(%URI{host: host, port: port, scheme: "https"}) do
     "#{host}:#{port}"
   end
 end
