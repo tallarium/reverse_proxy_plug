@@ -223,6 +223,25 @@ defmodule ReverseProxyPlugTest do
     assert "http://example.com:80/root_upstream/root_path?query=yes" == url
   end
 
+  test_stream_and_buffer "handles request path and query string replacing the path" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    opts_with_upstream =
+      Keyword.merge(opts, upstream: "//example.com/root_upstream?query=yes", override_path: true)
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn %{url: url} = request ->
+      send(self(), {:url, url})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/root_path")
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
+
+    assert_receive {:url, url}
+    assert "http://example.com:80/root_upstream?query=yes" == url
+  end
+
   test_stream_and_buffer "preserves trailing slash at the end of request path" do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
     opts_with_upstream = Keyword.merge(opts, upstream: "//example.com")

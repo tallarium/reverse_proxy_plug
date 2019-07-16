@@ -131,22 +131,22 @@ defmodule ReverseProxyPlug do
       |> Keyword.merge(Enum.filter(overrides, fn {_, val} -> val end))
 
     request_path =
-      if overrides[:request_path] do
+      if Keyword.get(overrides, :override_path, false) do
         overrides[:request_path]
       else
-        Enum.join(conn.path_info, "/")
+        Path.join(overrides[:request_path] || "/", conn.request_path)
       end
-
-    request_path =
-      if String.ends_with?(conn.request_path, "/"),
-        do: request_path <> "/",
-        else: request_path
 
     url = "#{x[:scheme]}://#{x[:host]}:#{x[:port]}#{request_path}"
 
     case x[:query_string] do
-      "" -> url
-      query_string -> url <> "?" <> query_string
+      "" ->
+        if String.ends_with?(url, "/"),
+          do: url,
+          else: url <> "/"
+
+      query_string ->
+        url <> "?" <> query_string
     end
   end
 
