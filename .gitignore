@@ -24,3 +24,5 @@ reverse_proxy_plug-*.tar
 
 # Vim swap files
 *.sw*
+
+.elixir_ls
