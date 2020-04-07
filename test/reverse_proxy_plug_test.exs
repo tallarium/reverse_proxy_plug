@@ -311,6 +311,23 @@ defmodule ReverseProxyPlugTest do
     assert url == "http://example.com:80/"
   end
 
+  test_stream_and_buffer "allow upstream configured at runtime" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+    opts_with_upstream = Keyword.merge(opts, upstream: fn -> "//runtime.com/root_upstream?query=yes" end)
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn %HTTPoison.Request{url: url} = request ->
+      send(self(), {:url, url})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/root_path")
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
+
+    assert_receive {:url, url}
+    assert url == "http://runtime.com:80/root_upstream/root_path?query=yes"
+  end
+
   test_stream_and_buffer "include the port in the host header when is not the default and preserve_host_header is false in opts" do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
     opts_with_upstream = Keyword.merge(opts, upstream: "//example-custom-port.com:8081")

@@ -13,11 +13,8 @@ defmodule ReverseProxyPlug do
     upstream_parts =
       opts
       |> Keyword.fetch!(:upstream)
-      |> URI.parse()
-      |> Map.to_list()
-      |> Enum.filter(fn {_, val} -> val end)
-      |> keyword_rename(:path, :request_path)
-      |> keyword_rename(:query, :query_string)
+      |> get_string()
+      |> upstream_parts()
 
     if opts[:status_callbacks] != nil and opts[:response_mode] not in [nil, :stream] do
       raise ":status_callbacks must only be specified with response_mode: :stream"
@@ -37,8 +34,51 @@ defmodule ReverseProxyPlug do
 
   @spec call(Plug.Conn.t(), Keyword.t()) :: Plug.Conn.t()
   def call(conn, opts) do
+    upstream_parts =
+      opts
+      |> Keyword.get(:upstream, "")
+      |> get_applied_fn()
+      |> upstream_parts()
+
+    opts =
+      opts
+      |> Keyword.merge(upstream_parts)
+
     body = read_body(conn)
     conn |> request(body, opts) |> response(conn, opts)
+  end
+
+  defp get_string(upstream, default \\ "")
+
+  defp get_string(upstream, _) when is_binary(upstream) do
+    upstream
+  end
+
+  defp get_string(_, default) do
+    default
+  end
+
+  defp get_applied_fn(upstream, default \\ "")
+
+  defp get_applied_fn(upstream, _) when is_function(upstream) do
+    upstream.()
+  end
+
+  defp get_applied_fn(_, default) do
+    default
+  end
+
+  defp upstream_parts("" = _upstream) do
+    []
+  end
+
+  defp upstream_parts(upstream) do
+    upstream
+    |> URI.parse()
+    |> Map.to_list()
+    |> Enum.filter(fn {_, val} -> val end)
+    |> keyword_rename(:path, :request_path)
+    |> keyword_rename(:query, :query_string)
   end
 
   def request(conn, body, opts) do
