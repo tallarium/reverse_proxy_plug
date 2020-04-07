@@ -51,6 +51,53 @@ directly in your `endpoint.ex`. If you're using something like ReverseProxyPlug,
 this is likely not what you want — in this case you'll want to move Plug.Parsers
 out of your endpoint and into specific router pipelines or routes themselves.
 
+Or you can extract the raw request body with a
+[custom body reader](https://hexdocs.pm/plug/1.6.0/Plug.Parsers.html#module-custom-body-reader)
+in your `endpoint.ex`:
+```elixir
+plug Plug.Parsers,
+  body_reader: {CacheBodyReader, :read_body, []},
+  # ...
+```
+and store it in the `Conn` struct with custom plug `cache_body_reader.ex`:
+```elixir
+defmodule CacheBodyReader do
+  @moduledoc """
+  Inspired by https://hexdocs.pm/plug/1.6.0/Plug.Parsers.html#module-custom-body-reader
+  """
+
+  alias Plug.Conn
+
+  @doc """
+  Read the raw body and store it for later use in the connection.
+  It ignores the updated connection returned by `Plug.Conn.read_body/2` to not break CSRF.
+  """
+  @spec read_body(Conn.t(), Plug.opts()) :: {:ok, String.t(), Conn.t()}
+  def read_body(%Conn{request_path: "/api/" <> _} = conn, opts) do
+    {:ok, body, _conn} = Conn.read_body(conn, opts)
+    conn = update_in(conn.assigns[:raw_body], &[body | &1 || []])
+    {:ok, body, conn}
+  end
+
+  def read_body(conn, _opts), do: {:ok, nil, conn}
+end
+```
+which then allows you to use the [Phoenix.Router.forward/4](https://hexdocs.pm/phoenix/Phoenix.Router.html#forward/4)
+in the `router.ex`:
+```elixir
+  scope "/api" do
+    pipe_through :api
+
+    forward "/foo", ReverseProxyPlug,
+      upstream: &Settings.foo_url/0,
+      error_callback: &__MODULE__.log_reverse_proxy_error/1
+
+    def log_reverse_proxy_error(error) do
+      Logger.warn("ReverseProxyPlug network error: #{inspect(error)}")
+    end
+  end
+```
+
 ### Modifying the client request body
 You can modify various aspects of the client request by simply modifying the
 `Conn` struct. In case you want to modify the request body, fetch it using
