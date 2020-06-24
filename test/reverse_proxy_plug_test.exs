@@ -137,6 +137,13 @@ defmodule ReverseProxyPlugTest do
     assert ReverseProxyPlug.read_body(conn) == "not raw body"
   end
 
+  test "missing upstream opt results in KeyError" do
+    bad_opts = Keyword.delete(@opts, :upstream)
+    assert_raise KeyError, fn ->
+        ReverseProxyPlug.init(bad_opts)
+    end
+  end
+
   test "calls status callback" do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, TestReuse.get_stream_responder(%{status_code: 500}))
