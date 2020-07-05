@@ -56,8 +56,9 @@ defmodule ReverseProxyPlug do
   def response(error, conn, opts) do
     error_callback = opts[:error_callback]
 
-    if error_callback do
-      error_callback.(error)
+    case error_callback do
+      {m, f, a} -> apply(m, f, a ++ [error])
+      fun when is_function(fun) -> fun.(error)
     end
 
     conn
