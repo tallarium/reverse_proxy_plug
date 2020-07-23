@@ -137,6 +137,28 @@ defmodule ReverseProxyPlugTest do
     assert ReverseProxyPlug.read_body(conn) == "not raw body"
   end
 
+  test "calls status callback" do
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, TestReuse.get_stream_responder(%{status_code: 500}))
+
+    opts =
+      @opts
+      |> Keyword.merge(
+        status_callbacks: %{
+          500 => fn conn, _opts ->
+            conn |> Plug.Conn.resp(404, "not found")
+          end
+        }
+      )
+
+    conn =
+      conn(:get, "/")
+      |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts))
+
+    assert conn.status == 404
+    assert conn.resp_body == "not found"
+  end
+
   test_stream_and_buffer "removes hop-by-hop headers before forwarding request" do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
 

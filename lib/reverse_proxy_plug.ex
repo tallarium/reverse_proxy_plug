@@ -19,11 +19,16 @@ defmodule ReverseProxyPlug do
       |> keyword_rename(:path, :request_path)
       |> keyword_rename(:query, :query_string)
 
+    if opts[:status_callbacks] != nil and opts[:response_mode] not in [nil, :stream] do
+      raise ":status_callbacks must only be specified with response_mode: :stream"
+    end
+
     opts
     |> Keyword.merge(upstream_parts)
     |> Keyword.put_new(:client, @http_client)
     |> Keyword.put_new(:client_options, [])
     |> Keyword.put_new(:response_mode, :stream)
+    |> Keyword.put_new(:status_callbacks, %{})
   end
 
   @spec call(Plug.Conn.t(), Keyword.t()) :: Plug.Conn.t()
@@ -45,7 +50,7 @@ defmodule ReverseProxyPlug do
   end
 
   def response({:ok, resp}, conn, opts) do
-    process_response(opts[:response_mode], conn, resp)
+    process_response(opts[:response_mode], conn, resp, opts)
   end
 
   def response(error, conn, opts) do
@@ -75,10 +80,15 @@ defmodule ReverseProxyPlug do
       |> Keyword.put(new_key, keywords[old_key])
       |> Keyword.delete(old_key)
 
-  defp process_response(:stream, conn, _resp),
-    do: stream_response(conn)
+  defp process_response(:stream, conn, _resp, opts),
+    do: stream_response(conn, opts)
 
-  defp process_response(:buffer, conn, %{status_code: status, body: body, headers: headers}) do
+  defp process_response(
+         :buffer,
+         conn,
+         %{status_code: status, body: body, headers: headers},
+         _opts
+       ) do
     resp_headers =
       headers
       |> normalize_headers
@@ -88,13 +98,19 @@ defmodule ReverseProxyPlug do
     |> Conn.resp(status, body)
   end
 
-  @spec stream_response(Conn.t()) :: Conn.t()
-  defp stream_response(conn) do
+  @spec stream_response(Conn.t(), Keyword.t()) :: Conn.t()
+  defp stream_response(conn, opts) do
     receive do
       %HTTPoison.AsyncStatus{code: code} ->
-        conn
-        |> Conn.put_status(code)
-        |> stream_response
+        case opts[:status_callbacks][code] do
+          nil ->
+            conn
+            |> Conn.put_status(code)
+            |> stream_response(opts)
+
+          handler ->
+            handler.(conn, opts)
+        end
 
       %HTTPoison.AsyncHeaders{headers: headers} ->
         headers
@@ -105,12 +121,12 @@ defmodule ReverseProxyPlug do
           Conn.put_resp_header(conn, header, value)
         end)
         |> Conn.send_chunked(conn.status)
-        |> stream_response
+        |> stream_response(opts)
 
       %HTTPoison.AsyncChunk{chunk: chunk} ->
         case Conn.chunk(conn, chunk) do
           {:ok, conn} ->
-            stream_response(conn)
+            stream_response(conn, opts)
 
           {:error, :closed} ->
             conn

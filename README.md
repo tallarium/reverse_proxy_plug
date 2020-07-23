@@ -91,6 +91,27 @@ plug(ReverseProxyPlug,
 )
 ```
 
+### Callbacks for responses in streaming mode
+
+In order to add special handling for responses with particular statuses instead
+of passing them on to the client as usual, provide the `:status_callbacks`
+option with a map from status code to handler:
+
+```elixir
+plug(ReverseProxyPlug,
+  upstream: "example.com",
+  status_callbacks: %{404 => &handle_404/2}
+)
+```
+
+The handler is called as soon as an `HTTPoison.AsyncStatus` message with the
+given status is received, taking the `Plug.Conn` and the options given to
+`ReverseProxyPlug`. It must then consume all the remaining incoming HTTPoison
+asynchronous response parts, respond to the client and return the `Plug.Conn`.
+
+`:status_callbacks` must only be given when `:response_mode` is `:stream`,
+which is the default.
+
 ## License
 
 ReverseProxyPlug is released under the MIT License.
