@@ -12,7 +12,7 @@ defmodule ReverseProxyPlug do
   def init(opts) do
     upstream_parts =
       opts
-      |> Keyword.get(:upstream, "")
+      |> Keyword.fetch!(:upstream)
       |> URI.parse()
       |> Map.to_list()
       |> Enum.filter(fn {_, val} -> val end)
