@@ -154,7 +154,7 @@ defmodule ReverseProxyPlug do
     request_path = Path.join(overrides[:request_path] || "/", request_path)
 
     request_path =
-      if String.ends_with?(conn.request_path, "/"),
+      if String.ends_with?(conn.request_path, "/") && !String.ends_with?(request_path, "/"),
         do: request_path <> "/",
         else: request_path
 

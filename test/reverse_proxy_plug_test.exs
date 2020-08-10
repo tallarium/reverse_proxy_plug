@@ -294,6 +294,23 @@ defmodule ReverseProxyPlugTest do
     assert url == "http://example.com:80/root_path/"
   end
 
+  test_stream_and_buffer "don't add a redundant slash at the end of request path" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+    opts_with_upstream = Keyword.merge(opts, upstream: "//example.com")
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn %{url: url} = request ->
+      send(self(), {:url, url})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/")
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
+
+    assert_receive {:url, url}
+    assert url == "http://example.com:80/"
+  end
+
   test_stream_and_buffer "include the port in the host header when is not the default and preserve_host_header is false in opts" do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
     opts_with_upstream = Keyword.merge(opts, upstream: "//example-custom-port.com:8081")
