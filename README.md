@@ -91,6 +91,16 @@ plug(ReverseProxyPlug,
 )
 ```
 
+You can also provide a MFA (module, function, arguments) tuple, to which the
+error will be inserted as the last argument:
+
+```elixir
+plug(ReverseProxyPlug,
+  upstream: "example.com",
+  error_callback: {MyErrorHandler, :handle_proxy_error, ["example.com"]}
+)
+```
+
 ### Callbacks for responses in streaming mode
 
 In order to add special handling for responses with particular statuses instead
