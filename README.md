@@ -91,8 +91,8 @@ plug(ReverseProxyPlug,
 )
 ```
 
-Alternatively, a MFA (module, function, argument) tuple can be passed (The error
-will be inserted as last argument):
+You can also provide a MFA (module, function, arguments) tuple, to which the
+error will be inserted as the last argument:
 
 ```elixir
 plug(ReverseProxyPlug,
