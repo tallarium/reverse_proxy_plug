@@ -29,6 +29,10 @@ defmodule ReverseProxyPlug do
     |> Keyword.put_new(:client_options, [])
     |> Keyword.put_new(:response_mode, :stream)
     |> Keyword.put_new(:status_callbacks, %{})
+    |> Keyword.update(:error_callback, nil, fn
+      {m, f, a} -> &apply(m, f, a ++ [&1])
+      fun when is_function(fun) -> fun
+    end)
   end
 
   @spec call(Plug.Conn.t(), Keyword.t()) :: Plug.Conn.t()
@@ -56,10 +60,8 @@ defmodule ReverseProxyPlug do
   def response(error, conn, opts) do
     error_callback = opts[:error_callback]
 
-    case error_callback do
-      {m, f, a} -> apply(m, f, a ++ [error])
-      fun when is_function(fun) -> fun.(error)
-      nil -> :ok
+    if error_callback do
+      error_callback.(error)
     end
 
     conn
