@@ -126,6 +126,16 @@ You can choose the response mode by passing a `:response_mode` option:
 forward("/foo", to: ReverseProxyPlug, response_mode: :buffer, upstream: "//example.com/bar")
 ```
 
+### Custom HTTP methods
+
+Only standard HTTP methods in "GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS",
+"TRACE" and "PATCH" will be forwarded by default. You can specific define other custom
+HTTP methods in keyword :custom_http_methods.
+
+```elixir
+forward("/foo", to: ReverseProxyPlug, upstream: "//example.com/bar", custom_http_methods: [:XMETHOD])
+```
+
 ### Connection errors
 
 `ReverseProxyPlug` will automatically respond with 502 Bad Gateway in case of

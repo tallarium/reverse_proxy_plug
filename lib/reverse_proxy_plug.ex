@@ -7,9 +7,17 @@ defmodule ReverseProxyPlug do
 
   @behaviour Plug
   @http_client HTTPoison
+  @http_methods ["GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"]
 
   @spec init(Keyword.t()) :: Keyword.t()
   def init(opts) do
+    (@http_methods ++ Keyword.get(opts, :custom_http_methods, []))
+    |> Enum.each(fn x ->
+      x
+      |> String.downcase()
+      |> String.to_atom()
+    end)
+
     upstream_parts =
       opts
       |> Keyword.fetch!(:upstream)
@@ -207,7 +215,17 @@ defmodule ReverseProxyPlug do
   end
 
   defp prepare_request(conn, options) do
-    method = conn.method |> String.downcase() |> String.to_atom()
+    method =
+      try do
+        conn.method
+        |> String.downcase()
+        |> String.to_existing_atom()
+      rescue
+        ArgumentError ->
+          raise "invalid http method, if you want to forward custom http methods, " <>
+                  "please add them as a list param of opts[:custom_http_methods]."
+      end
+
     url = prepare_url(conn, options)
 
     headers =
