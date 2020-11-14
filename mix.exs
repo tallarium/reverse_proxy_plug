@@ -23,7 +23,7 @@ defmodule ReverseProxyPlug.MixProject do
 
   defp package do
     %{
-      maintainers: ["Michał Szewczak"],
+      maintainers: ["Michał Szewczak", "Sam Nipps", "Matt Whitworth"],
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/tallarium/reverse_proxy_plug"}
     }
