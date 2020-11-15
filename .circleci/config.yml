@@ -18,7 +18,8 @@ jobs:
           keys:
             - v1-build-cache-{{ .Branch }}
 
-      - run: mix do deps.get, compile
+      - run: mix do deps.get
+      - run: mix ci
 
       - save_cache:
           key: v1-mix-cache-{{ .Branch }}-{{ checksum "mix.lock" }}
