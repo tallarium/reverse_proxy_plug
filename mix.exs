@@ -10,6 +10,7 @@ defmodule ReverseProxyPlug.MixProject do
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env()),
       description: description(),
+      aliases: aliases(),
       package: package()
     ]
   end
@@ -27,6 +28,16 @@ defmodule ReverseProxyPlug.MixProject do
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/tallarium/reverse_proxy_plug"}
     }
+  end
+
+  defp aliases do
+    [
+      ci: [
+        "format --check-formatted",
+        "credo --strict",
+        "compile --warnings-as-errors --force"
+      ]
+    ]
   end
 
   defp elixirc_paths(:test), do: ["test/support", "lib"]
