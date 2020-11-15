@@ -1,4 +1,5 @@
 defmodule TestReuse do
+  @moduledoc false
   @default_opts upstream: "example.com", client: ReverseProxyPlug.HTTPClientMock
 
   def get_buffer_responder(response_args) do

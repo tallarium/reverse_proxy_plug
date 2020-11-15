@@ -139,8 +139,9 @@ defmodule ReverseProxyPlugTest do
 
   test "missing upstream opt results in KeyError" do
     bad_opts = Keyword.delete(@opts, :upstream)
+
     assert_raise KeyError, fn ->
-        ReverseProxyPlug.init(bad_opts)
+      ReverseProxyPlug.init(bad_opts)
     end
   end
 
@@ -313,7 +314,9 @@ defmodule ReverseProxyPlugTest do
 
   test_stream_and_buffer "allow upstream configured at runtime" do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
-    opts_with_upstream = Keyword.merge(opts, upstream: fn -> "//runtime.com/root_upstream?query=yes" end)
+
+    opts_with_upstream =
+      Keyword.merge(opts, upstream: fn -> "//runtime.com/root_upstream?query=yes" end)
 
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn %HTTPoison.Request{url: url} = request ->

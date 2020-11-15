@@ -222,8 +222,9 @@ defmodule ReverseProxyPlug do
         |> String.to_existing_atom()
       rescue
         ArgumentError ->
-          raise "invalid http method, if you want to forward custom http methods, " <>
-                  "please add them as a list param of opts[:custom_http_methods]."
+          reraise "invalid http method, if you want to forward custom http methods, " <>
+                    "please add them as a list param of opts[:custom_http_methods].",
+                  __STACKTRACE__
       end
 
     url = prepare_url(conn, options)
