@@ -235,6 +235,13 @@ defmodule ReverseProxyPlugTest do
     assert_receive({:got_error, ^error})
   end
 
+  defmodule ErrorHandling do
+    def error_callback(arg, error) do
+      send(self(), {:got_arg, arg})
+      send(self(), {:got_error, error})
+    end
+  end
+
   test_stream_and_buffer "calls error callback if supplied as MFA tuple" do
     %{opts: opts} = test_reuse_opts
     error = {:error, :some_reason}
@@ -243,13 +250,6 @@ defmodule ReverseProxyPlugTest do
     |> expect(:request, fn _request ->
       error
     end)
-
-    defmodule ErrorHandling do
-      def error_callback(arg, error) do
-        send(self(), {:got_arg, arg})
-        send(self(), {:got_error, error})
-      end
-    end
 
     opts_with_callback =
       Keyword.merge(opts, error_callback: {ErrorHandling, :error_callback, [123]})
