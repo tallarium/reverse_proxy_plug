@@ -429,6 +429,19 @@ defmodule ReverseProxyPlugTest do
     assert timeout_val == httpclient_options[:recv_timeout]
   end
 
+  test "can be initialised as a plug with an MFA error callback" do
+    defmodule Test do
+      use Plug.Builder
+
+      def error_handler(_), do: nil
+
+      plug(ReverseProxyPlug,
+        upstream: "",
+        error_callback: {__MODULE__, :error_handler, []}
+      )
+    end
+  end
+
   defp simulate_upstream_error(conn, reason, opts) do
     error = {:error, %HTTPoison.Error{id: nil, reason: reason}}
 
