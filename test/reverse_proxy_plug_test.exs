@@ -232,7 +232,7 @@ defmodule ReverseProxyPlugTest do
 
     conn(:get, "/") |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_callback))
 
-    assert_receive({:got_error, error})
+    assert_receive({:got_error, ^error})
   end
 
   test_stream_and_buffer "calls error callback if supplied as MFA tuple" do
@@ -257,7 +257,7 @@ defmodule ReverseProxyPlugTest do
     conn(:get, "/") |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_callback))
 
     assert_receive({:got_arg, 123})
-    assert_receive({:got_error, error})
+    assert_receive({:got_error, ^error})
   end
 
   test_stream_and_buffer "handles request path and query string" do
