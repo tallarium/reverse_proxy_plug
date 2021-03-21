@@ -4,6 +4,7 @@ defmodule ReverseProxyPlug do
   """
 
   alias Plug.Conn
+  alias Location
 
   @behaviour Plug
   @http_client HTTPoison
@@ -48,9 +49,12 @@ defmodule ReverseProxyPlug do
       |> get_applied_fn()
       |> upstream_parts()
 
-    opts =
-      opts
-      |> Keyword.merge(upstream_parts)
+    opts = Keyword.merge(opts, upstream_parts)
+
+    ## TODO: sort out upstream
+    # Get base for redirects, so we can redirect to upstream
+    default_rule = {"example.com", conn.host <> (conn.script_name |> Enum.join("/"))}
+    opts = Keyword.put_new(opts, :redirect_rules, [default_rule])
 
     body = read_body(conn)
     conn |> request(body, opts) |> response(conn, opts)
@@ -141,11 +145,12 @@ defmodule ReverseProxyPlug do
          :buffer,
          conn,
          %{status_code: status, body: body, headers: headers},
-         _opts
+         opts
        ) do
     resp_headers =
       headers
       |> normalize_headers
+      |> Location.rewrite_location_header(status, opts)
 
     conn
     |> Conn.prepend_resp_headers(resp_headers)
@@ -169,6 +174,7 @@ defmodule ReverseProxyPlug do
       %HTTPoison.AsyncHeaders{headers: headers} ->
         headers
         |> normalize_headers
+        |> Location.rewrite_location_header(conn.status, opts)
         |> Enum.reject(fn {header, _} -> header == "content-length" end)
         |> Enum.concat([{"transfer-encoding", "chunked"}])
         |> Enum.reduce(conn, fn {header, value}, conn ->

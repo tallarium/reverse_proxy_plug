@@ -442,12 +442,80 @@ defmodule ReverseProxyPlugTest do
     end
   end
 
+  test_stream_and_buffer "does not rewrite Location on redirect with no rules" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+    opts = Keyword.merge(opts, redirect_rules: [])
+
+    conn =
+      :get
+      |> conn("http://www.test.com/")
+      |> simulate_redirect("http://example.com/test", opts, get_responder)
+
+    assert conn.status === 301
+    assert conn.resp_headers |> Map.new() |> Map.get("location") === "http://example.com/test"
+    assert conn.resp_body == "Redirect", "passes body through"
+  end
+
+  test_stream_and_buffer "rewrites Location on redirect with default rule" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    conn =
+      :get
+      |> conn("http://www.test.com/")
+      |> simulate_redirect("http://example.com/test", opts, get_responder)
+
+    assert conn.status === 301
+    assert conn.resp_headers |> Map.new() |> Map.get("location") === "http://www.test.com/test"
+    assert conn.resp_body == "Redirect", "passes body through"
+  end
+
+  test_stream_and_buffer "rewrites Location on redirect with custom rule" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    redirect_rules = [
+      {"//example.com/more-specific", "//another-example.com/more-specific"},
+      {"//example.com", "//another-example.com"}
+    ]
+
+    opts = Keyword.merge(opts, redirect_rules: redirect_rules)
+
+    conn =
+      :get
+      |> conn("http://www.test.com/")
+      |> simulate_redirect("http://example.com/test", opts, get_responder)
+
+    assert conn.status === 301
+
+    assert conn.resp_headers |> Map.new() |> Map.get("location") ===
+             "http://another-example.com/test"
+
+    assert conn.resp_body == "Redirect", "passes body through"
+  end
+
   defp simulate_upstream_error(conn, reason, opts) do
     error = {:error, %HTTPoison.Error{id: nil, reason: reason}}
 
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _request ->
       error
+    end)
+
+    ReverseProxyPlug.call(conn, ReverseProxyPlug.init(opts))
+  end
+
+  defp simulate_redirect(conn, host, opts, get_responder) do
+    resp = %{
+      status_code: 301,
+      headers: [
+        {"Location", host}
+      ],
+      body: "Redirect"
+    }
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn request ->
+      {:ok, resp}
+      get_responder.(resp).(request)
     end)
 
     ReverseProxyPlug.call(conn, ReverseProxyPlug.init(opts))
