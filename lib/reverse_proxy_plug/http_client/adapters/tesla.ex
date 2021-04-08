@@ -29,14 +29,19 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.Tesla do
       |> Map.put(:opts, opts)
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
-    with {:ok, %Tesla.Env{} = env} <- Tesla.request(client, tesla_opts) do
-      %HTTPClient.Response{
-        status_code: env.status,
-        body: env.body,
-        headers: env.headers,
-        request_url: env.url,
-        request: request
-      }
+    case Tesla.request(client, tesla_opts) do
+      {:ok, %Tesla.Env{} = env} ->
+        {:ok,
+         %HTTPClient.Response{
+           status_code: env.status,
+           body: env.body,
+           headers: env.headers,
+           request_url: env.url,
+           request: request
+         }}
+
+      {:error, error} ->
+        {:error, %HTTPClient.Error{reason: reason}}
     end
   end
 end
