@@ -135,9 +135,6 @@ defmodule ReverseProxyPlug do
       |> Keyword.put(new_key, keywords[old_key])
       |> Keyword.delete(old_key)
 
-  defp process_response(:stream, conn, _resp, opts),
-    do: stream_response(conn, opts)
-
   defp process_response(
          :buffer,
          conn,
@@ -153,42 +150,49 @@ defmodule ReverseProxyPlug do
     |> Conn.resp(status, body)
   end
 
-  @spec stream_response(Conn.t(), Keyword.t()) :: Conn.t()
-  defp stream_response(conn, opts) do
-    receive do
-      %HTTPClient.AsyncStatus{code: code} ->
-        case opts[:status_callbacks][code] do
-          nil ->
-            conn
-            |> Conn.put_status(code)
-            |> stream_response(opts)
+  if {:module, HTTPoison} == Code.ensure_loaded(HTTPoison) do
+    # This section of the code is present for retrocompatibility
+    # for the case where HTTPoison is the underlying HTTP Client
+    defp process_response(:stream, conn, _resp, opts),
+      do: stream_response(conn, opts)
 
-          handler ->
-            handler.(conn, opts)
-        end
+    @spec stream_response(Conn.t(), Keyword.t()) :: Conn.t()
+    defp stream_response(conn, opts) do
+      receive do
+        %HTTPoison.AsyncStatus{code: code} ->
+          case opts[:status_callbacks][code] do
+            nil ->
+              conn
+              |> Conn.put_status(code)
+              |> stream_response(opts)
 
-      %HTTPClient.AsyncHeaders{headers: headers} ->
-        headers
-        |> normalize_headers
-        |> Enum.reject(fn {header, _} -> header == "content-length" end)
-        |> Enum.concat([{"transfer-encoding", "chunked"}])
-        |> Enum.reduce(conn, fn {header, value}, conn ->
-          Conn.put_resp_header(conn, header, value)
-        end)
-        |> Conn.send_chunked(conn.status)
-        |> stream_response(opts)
+            handler ->
+              handler.(conn, opts)
+          end
 
-      %HTTPClient.AsyncChunk{chunk: chunk} ->
-        case Conn.chunk(conn, chunk) do
-          {:ok, conn} ->
-            stream_response(conn, opts)
+        %HTTPoison.AsyncHeaders{headers: headers} ->
+          headers
+          |> normalize_headers
+          |> Enum.reject(fn {header, _} -> header == "content-length" end)
+          |> Enum.concat([{"transfer-encoding", "chunked"}])
+          |> Enum.reduce(conn, fn {header, value}, conn ->
+            Conn.put_resp_header(conn, header, value)
+          end)
+          |> Conn.send_chunked(conn.status)
+          |> stream_response(opts)
 
-          {:error, :closed} ->
-            conn
-        end
+        %HTTPoison.AsyncChunk{chunk: chunk} ->
+          case Conn.chunk(conn, chunk) do
+            {:ok, conn} ->
+              stream_response(conn, opts)
 
-      %HTTPClient.AsyncEnd{} ->
-        conn
+            {:error, :closed} ->
+              conn
+          end
+
+        %HTTPoison.AsyncEnd{} ->
+          conn
+      end
     end
   end
 

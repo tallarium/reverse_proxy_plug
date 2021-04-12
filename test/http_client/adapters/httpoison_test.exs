@@ -4,12 +4,7 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.HTTPoisonTest do
   alias ReverseProxyPlug.HTTPClient.Adapters.HTTPoison, as: HTTPoisonClient
 
   alias ReverseProxyPlug.HTTPClient.{
-    AsyncChunk,
-    AsyncEnd,
-    AsyncHeaders,
     AsyncResponse,
-    AsyncStatus,
-    Error,
     Request,
     Response
   }

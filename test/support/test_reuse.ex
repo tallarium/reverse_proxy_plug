@@ -14,18 +14,18 @@ defmodule TestReuse do
     %{status_code: code, headers: headers, body: body} = make_response(response_args)
 
     fn _request ->
-      send(self(), %HTTPClient.AsyncStatus{code: code})
-      send(self(), %HTTPClient.AsyncHeaders{headers: headers})
+      send(self(), %HTTPoison.AsyncStatus{code: code})
+      send(self(), %HTTPoison.AsyncHeaders{headers: headers})
 
       body
       |> String.codepoints()
       |> Enum.chunk_every(body |> String.length() |> div(3))
       |> Enum.map(&Enum.join/1)
       |> Enum.each(fn chunk ->
-        send(self(), %HTTPClient.AsyncChunk{chunk: chunk})
+        send(self(), %HTTPoison.AsyncChunk{chunk: chunk})
       end)
 
-      send(self(), %HTTPClient.AsyncEnd{})
+      send(self(), %HTTPoison.AsyncEnd{})
       {:ok, nil}
     end
   end
