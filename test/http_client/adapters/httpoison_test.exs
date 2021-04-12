@@ -5,6 +5,7 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.HTTPoisonTest do
 
   alias ReverseProxyPlug.HTTPClient.{
     AsyncResponse,
+    Error,
     Request,
     Response
   }
@@ -55,6 +56,17 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.HTTPoisonTest do
         assert_receive %HTTPoison.AsyncHeaders{id: ^id, headers: headers}, 1_000
         assert_receive %HTTPoison.AsyncEnd{id: ^id}, 1_000
         assert is_list(headers)
+      end
+
+      test "should return error for requests with method #{method}" do
+        path = "/my-resource"
+
+        req = %Request{
+          method: unquote(method),
+          url: "http://localhost:8001#{path}"
+        }
+
+        assert {:error, %Error{reason: :econnrefused}} == HTTPoisonClient.request(req)
       end
     end
   end
