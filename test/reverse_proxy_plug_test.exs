@@ -3,6 +3,8 @@ defmodule ReverseProxyPlugTest do
   use ExUnit.Case
   use Plug.Test
 
+  alias ReverseProxyPlug.HTTPClient
+
   import Mox
 
   @opts [
@@ -319,7 +321,7 @@ defmodule ReverseProxyPlugTest do
       Keyword.merge(opts, upstream: fn -> "//runtime.com/root_upstream?query=yes" end)
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, fn %HTTPoison.Request{url: url} = request ->
+    |> expect(:request, fn %HTTPClient.Request{url: url} = request ->
       send(self(), {:url, url})
       get_responder.(%{}).(request)
     end)
@@ -443,7 +445,7 @@ defmodule ReverseProxyPlugTest do
   end
 
   defp simulate_upstream_error(conn, reason, opts) do
-    error = {:error, %HTTPoison.Error{id: nil, reason: reason}}
+    error = {:error, %HTTPClient.Error{id: nil, reason: reason}}
 
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _request ->

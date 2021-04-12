@@ -41,7 +41,7 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.Tesla do
          }}
 
       {:error, error} ->
-        {:error, %HTTPClient.Error{reason: reason}}
+        {:error, %HTTPClient.Error{reason: error}}
     end
   end
 end
