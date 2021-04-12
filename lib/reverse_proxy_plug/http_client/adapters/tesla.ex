@@ -19,7 +19,7 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.Tesla do
     {client, opts} = Keyword.pop(options, :tesla_client)
 
     unless client do
-      raise ":tesla_client is required"
+      raise ":tesla_client option is required"
     end
 
     tesla_opts =

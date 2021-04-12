@@ -51,6 +51,35 @@ defmodule ReverseProxyPlugTest do
     assert conn.resp_body == "Success", "passes body through"
   end
 
+  test "receives buffer response with Tesla adapter" do
+    headers = [{"host", "example.com"}, {"content-length", "42"}]
+    body = %{"a" => 1}
+
+    expect(
+      ReverseProxyPlug.TeslaMock,
+      :call,
+      fn %Tesla.Env{}, _opts ->
+        {:ok, Tesla.Mock.json(body, status: 200, headers: headers)}
+      end
+    )
+
+    proxy_opts =
+      Keyword.merge(@opts,
+        client: ReverseProxyPlug.HTTPClient.Adapters.Tesla,
+        client_options: [tesla_client: Tesla.client([], ReverseProxyPlug.TeslaMock)],
+        response_mode: :buffer
+      )
+
+    conn =
+      conn(:get, "/")
+      |> ReverseProxyPlug.call(ReverseProxyPlug.init(proxy_opts))
+
+    assert conn.status == 200, "passes status through"
+
+    assert Enum.all?(headers, fn x -> x in conn.resp_headers end), "passes headers through"
+    assert conn.resp_body == Jason.encode!(body)
+  end
+
   test "does not add transfer-encoding header to response" do
     headers = [{"host", "example.com"}, {"content-length", "42"}]
 
