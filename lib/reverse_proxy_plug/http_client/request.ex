@@ -4,7 +4,7 @@ defmodule ReverseProxyPlug.HTTPClient.Request do
     * `:method` - HTTP method as an atom (`:get`, `:head`, `:post`, `:put`,
       `:delete`, etc.)
     * `:url` - target url as a binary string or char list
-    * `:body` - request body. See more below
+    * `:body` - request body.
     * `:headers` - HTTP headers as an orddict (e.g., `[{"Accept", "application/json"}]`)
     * `:options` - Keyword list of options. Valid options vary with the HTTP client used.
     * `:query_params` - Query parameters as a map, keyword, or orddict
