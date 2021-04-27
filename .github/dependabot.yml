@@ -1,0 +1,15 @@
+version: 2
+registries:
+  hex-organization-tallarium-ltd:
+    type: hex-organization
+    organization: tallarium_ltd
+    key: "${{secrets.HEX_ORGANIZATION_TALLARIUM_LTD_KEY}}"
+
+updates:
+- package-ecosystem: mix
+  directory: "/"
+  schedule:
+    interval: monthly
+  open-pull-requests-limit: 99
+  registries:
+  - hex-organization-tallarium-ltd
