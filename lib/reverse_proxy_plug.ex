@@ -201,7 +201,13 @@ defmodule ReverseProxyPlug do
       |> Keyword.merge(Enum.filter(overrides, fn {_, val} -> val end))
 
     request_path = Enum.join(conn.path_info, "/")
-    request_path = Path.join(overrides[:request_path] || "/", request_path)
+
+    upstream_path =
+      Enum.reduce(conn.path_params, overrides[:request_path], fn {key, value}, path ->
+        String.replace(path, ":#{key}", value)
+      end)
+
+    request_path = Path.join(upstream_path || "/", request_path)
 
     request_path =
       if String.ends_with?(conn.request_path, "/") && !String.ends_with?(request_path, "/"),
