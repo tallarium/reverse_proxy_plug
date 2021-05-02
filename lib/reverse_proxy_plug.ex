@@ -204,7 +204,7 @@ defmodule ReverseProxyPlug do
 
     upstream_path =
       Enum.reduce(conn.path_params, overrides[:request_path], fn {key, value}, path ->
-        String.replace(path, ":#{key}", value)
+        if is_binary(value), do: String.replace(path, ":#{key}", value), else: path
       end)
 
     request_path = Path.join(upstream_path || "/", request_path)

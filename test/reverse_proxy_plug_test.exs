@@ -279,6 +279,25 @@ defmodule ReverseProxyPlugTest do
     assert "http://example.com:80/root_upstream/123/foo/" == url
   end
 
+  test_stream_and_buffer "handles non-binary path params" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    opts_with_upstream = Keyword.merge(opts, upstream: "//example.com/root_upstream/:id/foo")
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn %{url: url} = request ->
+      send(self(), {:url, url})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/")
+    |> Map.put(:path_params, %{id: "123", glob: [], other: %{}})
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
+
+    assert_receive {:url, url}
+    assert "http://example.com:80/root_upstream/123/foo/" == url
+  end
+
   test_stream_and_buffer "handles request path and query string" do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
 
