@@ -69,6 +69,10 @@ defmodule ReverseProxyPlug do
 
   defp get_applied_fn(upstream, default \\ "")
 
+  defp get_applied_fn({func, param}, _) when is_function(func) do
+    func.(param)
+  end
+
   defp get_applied_fn(upstream, _) when is_function(upstream) do
     upstream.()
   end

@@ -381,11 +381,11 @@ defmodule ReverseProxyPlugTest do
     assert url == "http://example.com:80/"
   end
 
-  test_stream_and_buffer "allow upstream configured at runtime" do
+  test_stream_and_buffer "allow upstream configured at runtime via 0 arity function" do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
 
     opts_with_upstream =
-      Keyword.merge(opts, upstream: fn -> "//runtime.com/root_upstream?query=yes" end)
+      Keyword.merge(opts, upstream: fn -> "//runtime.com/root_upstream" end)
 
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn %HTTPClient.Request{url: url} = request ->
@@ -397,7 +397,26 @@ defmodule ReverseProxyPlugTest do
     |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
 
     assert_receive {:url, url}
-    assert url == "http://runtime.com:80/root_upstream/root_path?query=yes"
+    assert url == "http://runtime.com:80/root_upstream/root_path"
+  end
+
+  test_stream_and_buffer "allow upstream configured at runtime via {func, param} tuple" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    opts_with_upstream =
+      Keyword.merge(opts, upstream: {fn x -> "//runtime.com" <> x end, "/root_upstream"})
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn %HTTPClient.Request{url: url} = request ->
+      send(self(), {:url, url})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/root_path")
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
+
+    assert_receive {:url, url}
+    assert url == "http://runtime.com:80/root_upstream/root_path"
   end
 
   test_stream_and_buffer "include the port in the host header when is not the default and preserve_host_header is false in opts" do
