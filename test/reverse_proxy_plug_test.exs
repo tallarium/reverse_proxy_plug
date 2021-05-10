@@ -315,8 +315,7 @@ defmodule ReverseProxyPlugTest do
   test_stream_and_buffer "allow upstream configured at runtime via 0 arity function" do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
 
-    opts_with_upstream =
-      Keyword.merge(opts, upstream: fn -> "//runtime.com/root_upstream" end)
+    opts_with_upstream = Keyword.merge(opts, upstream: fn -> "//runtime.com/root_upstream" end)
 
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn %HTTPoison.Request{url: url} = request ->
