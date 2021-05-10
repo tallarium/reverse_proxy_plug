@@ -3,6 +3,8 @@ defmodule ReverseProxyPlugTest do
   use ExUnit.Case
   use Plug.Test
 
+  alias ReverseProxyPlug.HTTPClient
+
   import Mox
 
   @opts [
@@ -47,6 +49,35 @@ defmodule ReverseProxyPlugTest do
     assert conn.status == 200, "passes status through"
     assert Enum.all?(headers, fn x -> x in conn.resp_headers end), "passes headers through"
     assert conn.resp_body == "Success", "passes body through"
+  end
+
+  test "receives buffer response with Tesla adapter" do
+    headers = [{"host", "example.com"}, {"content-length", "42"}]
+    body = %{"a" => 1}
+
+    expect(
+      ReverseProxyPlug.TeslaMock,
+      :call,
+      fn %Tesla.Env{}, _opts ->
+        {:ok, Tesla.Mock.json(body, status: 200, headers: headers)}
+      end
+    )
+
+    proxy_opts =
+      Keyword.merge(@opts,
+        client: ReverseProxyPlug.HTTPClient.Adapters.Tesla,
+        client_options: [tesla_client: Tesla.client([], ReverseProxyPlug.TeslaMock)],
+        response_mode: :buffer
+      )
+
+    conn =
+      conn(:get, "/")
+      |> ReverseProxyPlug.call(ReverseProxyPlug.init(proxy_opts))
+
+    assert conn.status == 200, "passes status through"
+
+    assert Enum.all?(headers, fn x -> x in conn.resp_headers end), "passes headers through"
+    assert conn.resp_body == Jason.encode!(body)
   end
 
   test "does not add transfer-encoding header to response" do
@@ -260,6 +291,44 @@ defmodule ReverseProxyPlugTest do
     assert_receive({:got_error, ^error})
   end
 
+  test_stream_and_buffer "substitutes path params into upstream path" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    opts_with_upstream = Keyword.merge(opts, upstream: "//example.com/root_upstream/:id/foo")
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn %{url: url} = request ->
+      send(self(), {:url, url})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/")
+    |> Map.put(:path_params, %{id: "123"})
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
+
+    assert_receive {:url, url}
+    assert "http://example.com:80/root_upstream/123/foo/" == url
+  end
+
+  test_stream_and_buffer "handles non-binary path params" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    opts_with_upstream = Keyword.merge(opts, upstream: "//example.com/root_upstream/:id/foo")
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn %{url: url} = request ->
+      send(self(), {:url, url})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/")
+    |> Map.put(:path_params, %{id: "123", glob: [], other: %{}})
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
+
+    assert_receive {:url, url}
+    assert "http://example.com:80/root_upstream/123/foo/" == url
+  end
+
   test_stream_and_buffer "handles request path and query string" do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
 
@@ -312,14 +381,14 @@ defmodule ReverseProxyPlugTest do
     assert url == "http://example.com:80/"
   end
 
-  test_stream_and_buffer "allow upstream configured at runtime" do
+  test_stream_and_buffer "allow upstream configured at runtime via 0 arity function" do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
 
     opts_with_upstream =
-      Keyword.merge(opts, upstream: fn -> "//runtime.com/root_upstream?query=yes" end)
+      Keyword.merge(opts, upstream: fn -> "//runtime.com/root_upstream" end)
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, fn %HTTPoison.Request{url: url} = request ->
+    |> expect(:request, fn %HTTPClient.Request{url: url} = request ->
       send(self(), {:url, url})
       get_responder.(%{}).(request)
     end)
@@ -328,7 +397,26 @@ defmodule ReverseProxyPlugTest do
     |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
 
     assert_receive {:url, url}
-    assert url == "http://runtime.com:80/root_upstream/root_path?query=yes"
+    assert url == "http://runtime.com:80/root_upstream/root_path"
+  end
+
+  test_stream_and_buffer "allow upstream configured at runtime via {func, param} tuple" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    opts_with_upstream =
+      Keyword.merge(opts, upstream: {fn x -> "//runtime.com" <> x end, "/root_upstream"})
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn %HTTPClient.Request{url: url} = request ->
+      send(self(), {:url, url})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/root_path")
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
+
+    assert_receive {:url, url}
+    assert url == "http://runtime.com:80/root_upstream/root_path"
   end
 
   test_stream_and_buffer "include the port in the host header when is not the default and preserve_host_header is false in opts" do
@@ -474,7 +562,7 @@ defmodule ReverseProxyPlugTest do
   end
 
   defp simulate_upstream_error(conn, reason, opts) do
-    error = {:error, %HTTPoison.Error{id: nil, reason: reason}}
+    error = {:error, %HTTPClient.Error{id: nil, reason: reason}}
 
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _request ->

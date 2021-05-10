@@ -5,8 +5,9 @@ defmodule ReverseProxyPlug do
 
   alias Plug.Conn
 
+  alias ReverseProxyPlug.HTTPClient
+
   @behaviour Plug
-  @http_client HTTPoison
   @http_methods ["GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"]
 
   @spec init(Keyword.t()) :: Keyword.t()
@@ -30,7 +31,7 @@ defmodule ReverseProxyPlug do
 
     opts
     |> Keyword.merge(upstream_parts)
-    |> Keyword.put_new(:client, @http_client)
+    |> Keyword.put_new(:client, http_client())
     |> Keyword.put_new(:client_options, [])
     |> Keyword.put_new(:response_mode, :stream)
     |> Keyword.put_new(:status_callbacks, %{})
@@ -79,6 +80,10 @@ defmodule ReverseProxyPlug do
 
   defp get_applied_fn(func, default \\ "")
 
+  defp get_applied_fn({func, param}, _) when is_function(func) do
+    func.(param)
+  end
+
   defp get_applied_fn(func, _) when is_function(func) do
     func.()
   end
@@ -103,7 +108,7 @@ defmodule ReverseProxyPlug do
   def request(conn, body, opts) do
     {method, url, headers, client_options} = prepare_request(conn, opts)
 
-    opts[:client].request(%HTTPoison.Request{
+    opts[:client].request(%HTTPClient.Request{
       method: method,
       url: url,
       body: body,
@@ -130,7 +135,7 @@ defmodule ReverseProxyPlug do
     |> Conn.send_resp()
   end
 
-  defp status_from_error({:error, %HTTPoison.Error{id: nil, reason: reason}})
+  defp status_from_error({:error, %HTTPClient.Error{id: nil, reason: reason}})
        when reason in [:timeout, :connect_timeout] do
     :gateway_timeout
   end
@@ -144,9 +149,6 @@ defmodule ReverseProxyPlug do
       keywords
       |> Keyword.put(new_key, keywords[old_key])
       |> Keyword.delete(old_key)
-
-  defp process_response(:stream, conn, _resp, opts),
-    do: stream_response(conn, opts)
 
   defp process_response(
          :buffer,
@@ -163,42 +165,49 @@ defmodule ReverseProxyPlug do
     |> Conn.resp(status, body)
   end
 
-  @spec stream_response(Conn.t(), Keyword.t()) :: Conn.t()
-  defp stream_response(conn, opts) do
-    receive do
-      %HTTPoison.AsyncStatus{code: code} ->
-        case opts[:status_callbacks][code] do
-          nil ->
-            conn
-            |> Conn.put_status(code)
-            |> stream_response(opts)
+  if {:module, HTTPoison} == Code.ensure_loaded(HTTPoison) do
+    # This section of the code is present for retrocompatibility
+    # for the case where HTTPoison is the underlying HTTP Client
+    defp process_response(:stream, conn, _resp, opts),
+      do: stream_response(conn, opts)
 
-          handler ->
-            handler.(conn, opts)
-        end
+    @spec stream_response(Conn.t(), Keyword.t()) :: Conn.t()
+    defp stream_response(conn, opts) do
+      receive do
+        %HTTPoison.AsyncStatus{code: code} ->
+          case opts[:status_callbacks][code] do
+            nil ->
+              conn
+              |> Conn.put_status(code)
+              |> stream_response(opts)
 
-      %HTTPoison.AsyncHeaders{headers: headers} ->
-        headers
-        |> normalize_headers
-        |> Enum.reject(fn {header, _} -> header == "content-length" end)
-        |> Enum.concat([{"transfer-encoding", "chunked"}])
-        |> Enum.reduce(conn, fn {header, value}, conn ->
-          Conn.put_resp_header(conn, header, value)
-        end)
-        |> Conn.send_chunked(conn.status)
-        |> stream_response(opts)
+            handler ->
+              handler.(conn, opts)
+          end
 
-      %HTTPoison.AsyncChunk{chunk: chunk} ->
-        case Conn.chunk(conn, chunk) do
-          {:ok, conn} ->
-            stream_response(conn, opts)
+        %HTTPoison.AsyncHeaders{headers: headers} ->
+          headers
+          |> normalize_headers
+          |> Enum.reject(fn {header, _} -> header == "content-length" end)
+          |> Enum.concat([{"transfer-encoding", "chunked"}])
+          |> Enum.reduce(conn, fn {header, value}, conn ->
+            Conn.put_resp_header(conn, header, value)
+          end)
+          |> Conn.send_chunked(conn.status)
+          |> stream_response(opts)
 
-          {:error, :closed} ->
-            conn
-        end
+        %HTTPoison.AsyncChunk{chunk: chunk} ->
+          case Conn.chunk(conn, chunk) do
+            {:ok, conn} ->
+              stream_response(conn, opts)
 
-      %HTTPoison.AsyncEnd{} ->
-        conn
+            {:error, :closed} ->
+              conn
+          end
+
+        %HTTPoison.AsyncEnd{} ->
+          conn
+      end
     end
   end
 
@@ -212,7 +221,13 @@ defmodule ReverseProxyPlug do
       |> Keyword.merge(Enum.filter(overrides, fn {_, val} -> val end))
 
     request_path = Enum.join(conn.path_info, "/")
-    request_path = Path.join(overrides[:request_path] || "/", request_path)
+
+    upstream_path =
+      Enum.reduce(conn.path_params, overrides[:request_path], fn {key, value}, path ->
+        if is_binary(value), do: String.replace(path, ":#{key}", value), else: path
+      end)
+
+    request_path = Path.join(upstream_path || "/", request_path)
 
     request_path =
       if String.ends_with?(conn.request_path, "/") && !String.ends_with?(request_path, "/"),
@@ -353,5 +368,13 @@ defmodule ReverseProxyPlug do
 
   defp host_header_from_url(%URI{host: host, port: port, scheme: "https"}) do
     "#{host}:#{port}"
+  end
+
+  defp http_client do
+    Application.get_env(
+      :reverse_proxy_plug,
+      :http_client,
+      HTTPClient.Adapters.HTTPoison
+    )
   end
 end
