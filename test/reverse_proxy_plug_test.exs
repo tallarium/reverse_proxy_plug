@@ -430,14 +430,13 @@ defmodule ReverseProxyPlugTest do
   end
 
   test "allow plug to be skipped with an if conditional function" do
-    opts = @opts
+    opts =
+      @opts
       |> Keyword.put(:if, fn -> false end)
 
     conn =
       conn(:get, "/")
-      |> ReverseProxyPlug.call(
-           ReverseProxyPlug.init(Keyword.merge(opts, response_mode: :buffer))
-         )
+      |> ReverseProxyPlug.call(ReverseProxyPlug.init(Keyword.merge(opts, response_mode: :buffer)))
 
     assert conn.status == nil
     assert conn.resp_body == nil
@@ -446,16 +445,15 @@ defmodule ReverseProxyPlugTest do
 
   test "ensure plug is not skipped when the if conditional function passes" do
     ReverseProxyPlug.HTTPClientMock
-      |> expect(:request, TestReuse.get_buffer_responder(%{}))
+    |> expect(:request, TestReuse.get_buffer_responder(%{}))
 
-    opts = @opts
-           |> Keyword.put(:if, fn -> true end)
+    opts =
+      @opts
+      |> Keyword.put(:if, fn -> true end)
 
     conn =
       conn(:get, "/")
-      |> ReverseProxyPlug.call(
-           ReverseProxyPlug.init(Keyword.merge(opts, response_mode: :buffer))
-         )
+      |> ReverseProxyPlug.call(ReverseProxyPlug.init(Keyword.merge(opts, response_mode: :buffer)))
 
     assert conn.status == 200
     assert conn.resp_body == "Success"

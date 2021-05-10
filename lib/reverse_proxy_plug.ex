@@ -61,6 +61,7 @@ defmodule ReverseProxyPlug do
       true ->
         body = read_body(conn)
         conn |> request(body, opts) |> response(conn, opts)
+
       _ ->
         conn
     end
