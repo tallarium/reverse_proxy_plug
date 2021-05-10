@@ -429,6 +429,39 @@ defmodule ReverseProxyPlugTest do
     assert timeout_val == httpclient_options[:recv_timeout]
   end
 
+  test "allow plug to be skipped with an if conditional function" do
+    opts = @opts
+      |> Keyword.put(:if, fn -> false end)
+
+    conn =
+      conn(:get, "/")
+      |> ReverseProxyPlug.call(
+           ReverseProxyPlug.init(Keyword.merge(opts, response_mode: :buffer))
+         )
+
+    assert conn.status == nil
+    assert conn.resp_body == nil
+    assert conn.state == :unset
+  end
+
+  test "ensure plug is not skipped when the if conditional function passes" do
+    ReverseProxyPlug.HTTPClientMock
+      |> expect(:request, TestReuse.get_buffer_responder(%{}))
+
+    opts = @opts
+           |> Keyword.put(:if, fn -> true end)
+
+    conn =
+      conn(:get, "/")
+      |> ReverseProxyPlug.call(
+           ReverseProxyPlug.init(Keyword.merge(opts, response_mode: :buffer))
+         )
+
+    assert conn.status == 200
+    assert conn.resp_body == "Success"
+    assert conn.state == :set
+  end
+
   test "can be initialised as a plug with an MFA error callback" do
     defmodule Test do
       use Plug.Builder
