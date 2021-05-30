@@ -80,7 +80,7 @@ defmodule CacheBodyReader do
     {:ok, body, conn}
   end
 
-  def read_body(conn, _opts), do: Conn.read_body(conn, opts)
+  def read_body(conn, opts), do: Conn.read_body(conn, opts)
 end
 ```
 which then allows you to use the [Phoenix.Router.forward/4](https://hexdocs.pm/phoenix/Phoenix.Router.html#forward/4)
