@@ -129,12 +129,12 @@ defmodule ReverseProxyPlugTest do
     assert ReverseProxyPlug.read_body(conn) == raw_body
   end
 
-  test "uses body when not empty even if raw_body provided" do
+  test "ignores body when not empty when raw_body is provided" do
     raw_body = "name=Jane"
     conn = conn(:post, "/users", "not raw body")
     conn = update_in(conn.assigns[:raw_body], fn _ -> raw_body end)
 
-    assert ReverseProxyPlug.read_body(conn) == "not raw body"
+    refute ReverseProxyPlug.read_body(conn) == "not raw body"
   end
 
   test "missing upstream opt results in KeyError" do
