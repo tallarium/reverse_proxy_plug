@@ -198,6 +198,39 @@ defmodule ReverseProxyPlugTest do
     assert conn.resp_body == "not found"
   end
 
+  test_stream_and_buffer "adds x-forwarded-for header if not present" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn %{headers: headers} = request ->
+      send(self(), {:headers, headers})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/")
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts))
+
+    assert_receive {:headers, headers}
+    assert_header(headers, "x-forwarded-for", ["127.0.0.1"])
+  end
+
+  test_stream_and_buffer "appends to x-forwarded-for header if present" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn %{headers: headers} = request ->
+      send(self(), {:headers, headers})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/")
+    |> Plug.Conn.put_req_header("x-forwarded-for", "127.0.0.2")
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts))
+
+    assert_receive {:headers, headers}
+    assert_header(headers, "x-forwarded-for", ["127.0.0.2, 127.0.0.1"])
+  end
+
   test_stream_and_buffer "removes hop-by-hop headers before forwarding request" do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
 
@@ -212,7 +245,7 @@ defmodule ReverseProxyPlugTest do
     |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts))
 
     assert_receive {:headers, headers}
-    assert @end_to_end_headers == headers
+    for {n, v} <- @end_to_end_headers, do: assert_header(headers, n, [v])
   end
 
   test_stream_and_buffer "removes hop-by-hop headers from response" do
@@ -470,7 +503,7 @@ defmodule ReverseProxyPlugTest do
     |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
 
     assert_receive {:headers, headers}
-    assert [{"host", "example-custom-port.com:8081"}] == headers
+    assert_header(headers, "host", ["example-custom-port.com:8081"])
   end
 
   test_stream_and_buffer "don't include the port in the host header when is the default and preserve_host_header is false in opts" do
@@ -488,7 +521,7 @@ defmodule ReverseProxyPlugTest do
     |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
 
     assert_receive {:headers, headers}
-    assert [{"host", "example-custom-port.com"}] == headers
+    assert_header(headers, "host", ["example-custom-port.com"])
   end
 
   test_stream_and_buffer "don't include the port in the host header when is the default for https and preserve_host_header is false in opts" do
@@ -506,7 +539,7 @@ defmodule ReverseProxyPlugTest do
     |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
 
     assert_receive {:headers, headers}
-    assert [{"host", "example-custom-port.com"}] == headers
+    assert_header(headers, "host", ["example-custom-port.com"])
   end
 
   test_stream_and_buffer "returns gateway timeout on connect timeout" do
@@ -609,5 +642,11 @@ defmodule ReverseProxyPlugTest do
     end)
 
     ReverseProxyPlug.call(conn, ReverseProxyPlug.init(opts))
+  end
+
+  defp assert_header(headers, key, value) do
+    header = for {^key, v} <- headers, do: v
+
+    assert header == value
   end
 end
