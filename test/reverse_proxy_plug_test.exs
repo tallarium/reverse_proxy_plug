@@ -566,6 +566,40 @@ defmodule ReverseProxyPlugTest do
     end
   end
 
+  test_stream_and_buffer "recycles cookies from connection" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn %{options: options} = request ->
+      send(self(), {:httpclient_options, options})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/")
+    |> put_req_cookie("test-cookie", "value")
+    |> put_req_cookie("test-cookie2", "value2")
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts))
+
+    assert_receive {:httpclient_options, httpclient_options}
+    assert "test-cookie=value; test-cookie2=value2" == httpclient_options[:hackney][:cookie]
+  end
+
+  test_stream_and_buffer "client options do not set cookies if not present on connection" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn %{options: options} = request ->
+      send(self(), {:httpclient_options, options})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/")
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts))
+
+    assert_receive {:httpclient_options, httpclient_options}
+    refute httpclient_options[:hackney][:cookie]
+  end
+
   defp simulate_upstream_error(conn, reason, opts) do
     error = {:error, %HTTPClient.Error{id: nil, reason: reason}}
 
