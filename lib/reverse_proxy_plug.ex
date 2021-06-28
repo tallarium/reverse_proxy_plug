@@ -106,14 +106,37 @@ defmodule ReverseProxyPlug do
   end
 
   def response(error, conn, opts) do
-    error_callback = opts[:error_callback]
+    do_error_callback(opts[:error_callback], error, conn)
+  end
 
-    case error_callback do
-      {m, f, a} -> apply(m, f, a ++ [error])
-      fun when is_function(fun) -> fun.(error)
-      nil -> :ok
+  defp do_error_callback({m, f, a}, error, conn) do
+    cond do
+      :erlang.function_exported(m, f, length(a) + 2) ->
+        apply(m, f, a ++ [error, conn])
+
+      :erlang.function_exported(m, f, length(a) + 1) ->
+        apply(m, f, a ++ [error])
+        default_error_resp(error, conn)
+
+      true ->
+        raise "error callback has invalid arity"
     end
+  end
 
+  defp do_error_callback(fun, error, conn) when is_function(fun) do
+    case :erlang.fun_info(fun, :arity) do
+      {:arity, 2} ->
+        fun.(error, conn)
+
+      {:arity, 1} ->
+        fun.(error)
+        default_error_resp(error, conn)
+    end
+  end
+
+  defp do_error_callback(nil, error, conn), do: default_error_resp(error, conn)
+
+  defp default_error_resp(error, conn) do
     conn
     |> Conn.resp(status_from_error(error), "")
     |> Conn.send_resp()
