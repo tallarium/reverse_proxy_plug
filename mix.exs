@@ -20,8 +20,9 @@ defmodule ReverseProxyPlug.MixProject do
 
   defp package do
     [
-      description: "An Elixir reverse proxy Plug with HTTP/2, chunked transfer and path " <>
-        "proxying support.",
+      description:
+        "An Elixir reverse proxy Plug with HTTP/2, chunked transfer and path " <>
+          "proxying support.",
       maintainers: ["Michał Szewczak", "Sam Nipps", "Matt Whitworth"],
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/tallarium/reverse_proxy_plug"}
