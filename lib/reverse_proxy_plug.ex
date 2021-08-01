@@ -291,11 +291,10 @@ defmodule ReverseProxyPlug do
     |> Enum.reject(fn {header, _} -> Enum.member?(hop_by_hop_headers, header) end)
   end
 
+  def read_body(%{assigns: %{raw_body: raw_body}}), do: raw_body
+
   def read_body(conn) do
     case Conn.read_body(conn) do
-      {:ok, "", %{assigns: %{raw_body: raw_body}}} ->
-        raw_body
-
       {:ok, body, _conn} ->
         body
 
