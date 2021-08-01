@@ -145,14 +145,27 @@ forward("/foo", to: ReverseProxyPlug, upstream: "//example.com/bar", custom_http
 
 ### Connection errors
 
-`ReverseProxyPlug` will automatically respond with 502 Bad Gateway in case of
-network error. To inspect the HTTPoison error that caused the response, you
-can pass an `:error_callback` option.
+By default, `ReverseProxyPlug` will automatically respond with 502 Bad Gateway
+in case of network error. To inspect the HTTPoison error that caused the
+response, you can pass an `:error_callback` option.
 
 ```elixir
 plug(ReverseProxyPlug,
   upstream: "example.com",
   error_callback: fn error -> Logger.error("Network error: #{inspect(error)}") end
+)
+```
+
+If you wish to handle the response directly, you can provide a function with
+arity 2 where the connection will be passed as the second argument:
+
+```elixir
+plug(ReverseProxyPlug,
+  upstream: "example.com",
+  error_callback: fn error, conn ->
+    Logger.error("Network error: #{inspect(error)}")
+    Plug.Conn.send_resp(conn, :internal_server_error, "something went wrong")
+  end)
 )
 ```
 
@@ -165,6 +178,10 @@ plug(ReverseProxyPlug,
   error_callback: {MyErrorHandler, :handle_proxy_error, ["example.com"]}
 )
 ```
+
+If the function specified by the MFA tuple supports two additional arguments,
+the error and connection will inserted as the last two arguments, respectively.
+
 
 ### Callbacks for responses in streaming mode
 

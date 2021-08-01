@@ -218,6 +218,32 @@ defmodule ReverseProxyPlugTest do
     assert conn.status === 502
   end
 
+  defmodule ErrorHandling do
+    def mfa_error_callback(arg, error) do
+      send(self(), {:got_arg, arg})
+      send(self(), {:got_error, error})
+    end
+
+    def mfa_error_callback(arg, error, conn) do
+      send(self(), {:got_arg, arg})
+      send(self(), {:got_error, error})
+      send(self(), {:got_conn, conn})
+      resp(conn, :internal_server_error, "internal server error")
+    end
+
+    def mfa_error_callback1(arg, error), do: mfa_error_callback(arg, error)
+
+    def fun_error_callback(error) do
+      send(self(), {:got_error, error})
+    end
+
+    def fun_error_callback(error, conn) do
+      send(self(), {:got_error, error})
+      send(self(), {:got_conn, conn})
+      resp(conn, :internal_server_error, "internal server error")
+    end
+  end
+
   test_stream_and_buffer "calls error callback if supplied" do
     %{opts: opts} = test_reuse_opts
     error = {:error, :some_reason}
@@ -227,19 +253,33 @@ defmodule ReverseProxyPlugTest do
       error
     end)
 
-    opts_with_callback =
-      Keyword.merge(opts, error_callback: fn err -> send(self(), {:got_error, err}) end)
+    opts_with_callback = Keyword.merge(opts, error_callback: &ErrorHandling.fun_error_callback/1)
 
-    conn(:get, "/") |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_callback))
+    conn = conn(:get, "/") |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_callback))
 
     assert_receive({:got_error, ^error})
+    refute_receive({:got_conn, _})
+    assert %Plug.Conn{status: 502} = conn
   end
 
-  defmodule ErrorHandling do
-    def error_callback(arg, error) do
-      send(self(), {:got_arg, arg})
-      send(self(), {:got_error, error})
-    end
+  test_stream_and_buffer "calls error callback with arity 2 if supplied" do
+    %{opts: opts} = test_reuse_opts
+    error = {:error, :some_reason}
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn _request ->
+      error
+    end)
+
+    opts_with_callback = Keyword.merge(opts, error_callback: &ErrorHandling.fun_error_callback/2)
+
+    conn = conn(:get, "/")
+
+    resp_conn = ReverseProxyPlug.call(conn, ReverseProxyPlug.init(opts_with_callback))
+
+    assert_receive({:got_error, ^error})
+    assert_receive({:got_conn, ^conn})
+    assert %Plug.Conn{status: 500} = resp_conn
   end
 
   test_stream_and_buffer "calls error callback if supplied as MFA tuple" do
@@ -252,12 +292,35 @@ defmodule ReverseProxyPlugTest do
     end)
 
     opts_with_callback =
-      Keyword.merge(opts, error_callback: {ErrorHandling, :error_callback, [123]})
+      Keyword.merge(opts, error_callback: {ErrorHandling, :mfa_error_callback1, [123]})
 
     conn(:get, "/") |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_callback))
 
     assert_receive({:got_arg, 123})
     assert_receive({:got_error, ^error})
+    refute_receive({:got_conn, _})
+  end
+
+  test_stream_and_buffer "calls error callback with higher arity if present" do
+    %{opts: opts} = test_reuse_opts
+    error = {:error, :some_reason}
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn _request ->
+      error
+    end)
+
+    opts_with_callback =
+      Keyword.merge(opts, error_callback: {ErrorHandling, :mfa_error_callback, [123]})
+
+    conn = conn(:get, "/")
+
+    resp_conn = ReverseProxyPlug.call(conn, ReverseProxyPlug.init(opts_with_callback))
+
+    assert_receive({:got_arg, 123})
+    assert_receive({:got_error, ^error})
+    assert_receive({:got_conn, ^conn})
+    assert %Plug.Conn{status: 500} = resp_conn
   end
 
   test_stream_and_buffer "handles request path and query string" do
