@@ -129,12 +129,12 @@ defmodule ReverseProxyPlugTest do
     assert ReverseProxyPlug.read_body(conn) == raw_body
   end
 
-  test "uses body when not empty even if raw_body provided" do
+  test "ignores body when not empty when raw_body is provided" do
     raw_body = "name=Jane"
     conn = conn(:post, "/users", "not raw body")
     conn = update_in(conn.assigns[:raw_body], fn _ -> raw_body end)
 
-    assert ReverseProxyPlug.read_body(conn) == "not raw body"
+    refute ReverseProxyPlug.read_body(conn) == "not raw body"
   end
 
   test "missing upstream opt results in KeyError" do
@@ -392,6 +392,36 @@ defmodule ReverseProxyPlugTest do
 
     assert_receive {:url, url}
     assert url == "http://runtime.com:80/root_upstream/root_path?query=yes"
+  end
+
+  test_stream_and_buffer "allow upstream configured at runtime with conn data" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    opts_with_upstream =
+      Keyword.merge(opts,
+        upstream: fn
+          %Plug.Conn{request_path: "/root_path"} -> "//runtime.com/root_upstream?query=yes"
+          %Plug.Conn{request_path: "/another_path"} -> "//runtime.com/another_upstream?query=yes"
+        end
+      )
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, 2, fn %HTTPoison.Request{url: url} = request ->
+      send(self(), {:url, url})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/root_path")
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
+
+    assert_receive {:url, url}
+    assert url == "http://runtime.com:80/root_upstream/root_path?query=yes"
+
+    conn(:get, "/another_path")
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
+
+    assert_receive {:url, url}
+    assert url == "http://runtime.com:80/another_upstream/another_path?query=yes"
   end
 
   test_stream_and_buffer "include the port in the host header when is not the default and preserve_host_header is false in opts" do

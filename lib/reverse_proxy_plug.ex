@@ -45,7 +45,7 @@ defmodule ReverseProxyPlug do
     upstream_parts =
       opts
       |> Keyword.get(:upstream, "")
-      |> get_applied_fn()
+      |> get_applied_fn(conn)
       |> upstream_parts()
 
     opts =
@@ -66,13 +66,17 @@ defmodule ReverseProxyPlug do
     default
   end
 
-  defp get_applied_fn(upstream, default \\ "")
+  defp get_applied_fn(upstream, conn, default \\ "")
 
-  defp get_applied_fn(upstream, _) when is_function(upstream) do
+  defp get_applied_fn(upstream, _conn, _) when is_function(upstream, 0) do
     upstream.()
   end
 
-  defp get_applied_fn(_, default) do
+  defp get_applied_fn(upstream, conn, _) when is_function(upstream, 1) do
+    upstream.(conn)
+  end
+
+  defp get_applied_fn(_, _conn, default) do
     default
   end
 
@@ -310,11 +314,10 @@ defmodule ReverseProxyPlug do
     |> Enum.reject(fn {header, _} -> Enum.member?(hop_by_hop_headers, header) end)
   end
 
+  def read_body(%{assigns: %{raw_body: raw_body}}), do: raw_body
+
   def read_body(conn) do
     case Conn.read_body(conn) do
-      {:ok, "", %{assigns: %{raw_body: raw_body}}} ->
-        raw_body
-
       {:ok, body, _conn} ->
         body
 
