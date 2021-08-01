@@ -1,5 +1,11 @@
 # ReverseProxyPlug
 
+[![Module Version](https://img.shields.io/hexpm/v/reverse_proxy_plug.svg)](https://hex.pm/packages/reverse_proxy_plug)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/reverse_proxy_plug/)
+[![Total Download](https://img.shields.io/hexpm/dt/reverse_proxy_plug.svg)](https://hex.pm/packages/reverse_proxy_plug)
+[![License](https://img.shields.io/hexpm/l/reverse_proxy_plug.svg)](https://github.com/tallarium/reverse_proxy_plug/blob/master/LICENSE.md)
+[![Last Updated](https://img.shields.io/github/last-commit/tallarium/reverse_proxy_plug.svg)](https://github.com/tallarium/reverse_proxy_plug/commits/master)
+
 A reverse proxy plug for proxying a request to another URL using [HTTPoison](https://github.com/edgurgel/httpoison).
 Perfect when you need to transparently proxy requests to another service but
 also need to have full programmatic control over the outgoing requests.
@@ -17,7 +23,7 @@ Add `reverse_proxy_plug` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:reverse_proxy_plug, "~> 1.3.2"}
+    {:reverse_proxy_plug, "~> 1.3.3"}
   ]
 end
 ```
@@ -180,6 +186,8 @@ asynchronous response parts, respond to the client and return the `Plug.Conn`.
 `:status_callbacks` must only be given when `:response_mode` is `:stream`,
 which is the default.
 
-## License
+## Copyright and License
 
-ReverseProxyPlug is released under the MIT License.
+Copyright (c) 2018 Tallarium Technologies
+
+ReverseProxyPlug is released under the [MIT License](./LICENSE.md).
