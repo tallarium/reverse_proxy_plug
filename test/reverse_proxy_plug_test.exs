@@ -437,7 +437,7 @@ defmodule ReverseProxyPlugTest do
       )
 
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, 2, fn %HTTPoison.Request{url: url} = request ->
+    |> expect(:request, 2, fn %HTTPClient.Request{url: url} = request ->
       send(self(), {:url, url})
       get_responder.(%{}).(request)
     end)
