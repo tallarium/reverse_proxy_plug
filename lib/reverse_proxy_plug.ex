@@ -6,6 +6,7 @@ defmodule ReverseProxyPlug do
   alias Plug.Conn
 
   alias ReverseProxyPlug.HTTPClient
+  import Plug.Conn, only: [fetch_cookies: 1]
 
   @behaviour Plug
   @http_methods ["GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"]
@@ -275,6 +276,7 @@ defmodule ReverseProxyPlug do
     client_options =
       options[:response_mode]
       |> get_client_opts(options[:client_options])
+      |> recycle_cookies(conn)
 
     {method, url, headers, client_options}
   end
@@ -317,6 +319,24 @@ defmodule ReverseProxyPlug do
 
     headers
     |> Enum.reject(fn {header, _} -> Enum.member?(hop_by_hop_headers, header) end)
+  end
+
+  defp recycle_cookies(client_opts, conn) do
+    case get_cookies(conn) do
+      "" ->
+        client_opts
+
+      cookies when is_bitstring(cookies) ->
+        Keyword.put(client_opts, :hackney, cookie: cookies)
+    end
+  end
+
+  defp get_cookies(%Conn{cookies: %Conn.Unfetched{aspect: :cookies}} = conn) do
+    conn |> fetch_cookies() |> get_cookies()
+  end
+
+  defp get_cookies(%Conn{req_cookies: cookies}) do
+    cookies |> Enum.map(fn {k, v} -> "#{k}=#{v}" end) |> Enum.join("; ")
   end
 
   def read_body(%{assigns: %{raw_body: raw_body}}), do: raw_body
