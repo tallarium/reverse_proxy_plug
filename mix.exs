@@ -52,7 +52,7 @@ defmodule ReverseProxyPlug.MixProject do
     [
       {:plug, "~> 1.6"},
       {:cowboy, "~> 2.4"},
-      {:httpoison, "~> 1.2", optional: true},
+      {:httpoison, "~> 1.2"},
       {:credo, "~> 1.0", only: [:dev, :test]},
       {:mox, "~> 1.0", only: :test, optional: true},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
