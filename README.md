@@ -28,6 +28,16 @@ def deps do
 end
 ```
 
+Then add an http client library, either [httpoison](https://hex.pm/packages/httpoison) or [tesla](https://hex.pm/packages/tesla)
+
+Also set configration:
+
+```elixir
+config :reverse_proxy_plug, :http_client, ReverseProxyPlug.HTTPClient.Adapters.HTTPoison
+# OR
+config :reverse_proxy_plug, :http_client, ReverseProxyPlug.HTTPClient.Adapters.Tesla
+```
+
 ## Usage
 
 The plug works best when used with

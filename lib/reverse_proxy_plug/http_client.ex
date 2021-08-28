@@ -10,4 +10,7 @@ defmodule ReverseProxyPlug.HTTPClient do
                | __MODULE__.AsyncResponse.t()
                | __MODULE__.MaybeRedirect.t()}
               | {:error, error()}
+
+  if !Code.ensure_loaded?(HTTPoison) && !Code.ensure_loaded?(Tesla),
+    do: raise("Either http_poison or tesla must be available")
 end
