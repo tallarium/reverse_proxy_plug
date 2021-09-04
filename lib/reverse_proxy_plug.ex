@@ -31,7 +31,7 @@ defmodule ReverseProxyPlug do
     end
 
     unless opts[:client] do
-      raise "the :http_client config for :reverse_proxy_plug must be provided"
+      raise "the :client option must be provided"
     end
 
     opts
