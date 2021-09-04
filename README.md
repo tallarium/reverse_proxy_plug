@@ -35,11 +35,22 @@ The configuration for the `ReverseProxyPlug.HTTPClient` implementation must also
 
 ```elixir
 # If you wish to use the provided HTTPoison client (previous behavior for the lib)
-config :reverse_proxy_plug, :http_client, ReverseProxyPlug.HTTPClient.Adapters.HTTPoison
+plug ReverseProxyPlug, [..., client: ReverseProxyPlug.HTTPClient.Adapters.HTTPoison]
 # If you wish to use the provided Tesla client
-config :reverse_proxy_plug, :http_client, ReverseProxyPlug.HTTPClient.Adapters.Tesla
+plug ReverseProxyPlug, [..., client: ReverseProxyPlug.HTTPClient.Adapters.Tesla]
 # Any custom HTTP Client
-config :reverse_proxy_plug, :http_client, MyCustomHTTPClient
+plug ReverseProxyPlug, [..., client: MyCustomHTTPClient]
+```
+
+Or through `call/2` syntax:
+
+```elixir
+# If you wish to use the provided HTTPoison client (previous behavior for the lib)
+ReverseProxyPlug.call(conn, ReverseProxyPlug.init([..., client: ReverseProxyPlug.HTTPClient.Adapters.HTTPoison]))
+# If you wish to use the provided Tesla client
+ReverseProxyPlug.call(conn, ReverseProxyPlug.init([..., client: ReverseProxyPlug.HTTPClient.Adapters.Tesla]))
+# Any custom HTTP Client
+ReverseProxyPlug.call(conn, ReverseProxyPlug.init([..., client: MyCustomHTTPClient]))
 ```
 
 ## Usage
