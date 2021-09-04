@@ -594,7 +594,8 @@ defmodule ReverseProxyPlugTest do
 
       plug(ReverseProxyPlug,
         upstream: "",
-        error_callback: {__MODULE__, :error_handler, []}
+        error_callback: {__MODULE__, :error_handler, []},
+        client: ReverseProxyPlug.HTTPClient.Adapters.HTTPoison
       )
     end
   end

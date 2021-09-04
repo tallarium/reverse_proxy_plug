@@ -30,13 +30,12 @@ defmodule ReverseProxyPlug do
       raise ":status_callbacks must only be specified with response_mode: :stream"
     end
 
-    unless http_client() do
+    unless opts[:client] do
       raise "the :http_client config for :reverse_proxy_plug must be provided"
     end
 
     opts
     |> Keyword.merge(upstream_parts)
-    |> Keyword.put_new(:client, http_client())
     |> Keyword.put_new(:client_options, [])
     |> Keyword.put_new(:response_mode, :stream)
     |> Keyword.put_new(:status_callbacks, %{})
@@ -415,12 +414,5 @@ defmodule ReverseProxyPlug do
 
   defp host_header_from_url(%URI{host: host, port: port, scheme: "https"}) do
     "#{host}:#{port}"
-  end
-
-  defp http_client do
-    Application.get_env(
-      :reverse_proxy_plug,
-      :http_client
-    )
   end
 end
