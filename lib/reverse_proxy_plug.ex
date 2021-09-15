@@ -30,13 +30,8 @@ defmodule ReverseProxyPlug do
       raise ":status_callbacks must only be specified with response_mode: :stream"
     end
 
-    opts = ensure_http_client(opts)
-
-    unless opts[:client] do
-      raise "the :client option must be provided"
-    end
-
     opts
+    |> ensure_http_client()
     |> Keyword.merge(upstream_parts)
     |> Keyword.put_new(:client_options, [])
     |> Keyword.put_new(:response_mode, :stream)
