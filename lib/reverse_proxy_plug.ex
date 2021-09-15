@@ -30,6 +30,8 @@ defmodule ReverseProxyPlug do
       raise ":status_callbacks must only be specified with response_mode: :stream"
     end
 
+    opts = ensure_http_client(opts)
+
     unless opts[:client] do
       raise "the :client option must be provided"
     end
@@ -414,5 +416,21 @@ defmodule ReverseProxyPlug do
 
   defp host_header_from_url(%URI{host: host, port: port, scheme: "https"}) do
     "#{host}:#{port}"
+  end
+
+  defp ensure_http_client(opts) do
+    client = opts[:client] || Application.get_env(:reverse_proxy_plug, :http_client)
+
+    cond do
+      not is_nil(client) ->
+        Keyword.put(opts, :client, client)
+
+      Code.ensure_loaded?(HTTPClient.Adapters.HTTPoison) and is_nil(client) ->
+        Keyword.put(opts, :client, HTTPClient.Adapters.HTTPoison)
+
+      true ->
+        raise ArgumentError,
+              ":client option or :reverse_proxy_plug, :http_client global config must be set"
+    end
   end
 end

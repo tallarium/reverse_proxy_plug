@@ -600,6 +600,50 @@ defmodule ReverseProxyPlugTest do
     end
   end
 
+  test "must be initialized with either global or local config set" do
+    prev = Application.get_env(:reverse_proxy_plug, :http_client)
+
+    on_exit(fn -> Application.put_env(:reverse_proxy_plug, :http_client, prev) end)
+
+    Application.put_env(:reverse_proxy_plug, :http_client, nil)
+
+    # Ensure it defaults to HTTPoison for retrocompatibility
+
+    assert opts =
+             ReverseProxyPlug.init(
+               upstream: "",
+               error_callback: {__MODULE__, :error_handler, []}
+             )
+
+    assert opts[:client] == ReverseProxyPlug.HTTPClient.Adapters.HTTPoison
+
+    adapter = MyCustomAdapter
+
+    assert opts =
+             ReverseProxyPlug.init(
+               upstream: "",
+               error_callback: {__MODULE__, :error_handler, []},
+               client: adapter
+             )
+
+    assert adapter == opts[:client]
+
+    Application.put_env(
+      :reverse_proxy_plug,
+      :http_client,
+      adapter
+    )
+
+    assert opts =
+             ReverseProxyPlug.init(
+               upstream: "",
+               error_callback: {__MODULE__, :error_handler, []},
+               client: nil
+             )
+
+    assert adapter == opts[:client]
+  end
+
   test_stream_and_buffer "recycles cookies from connection" do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
 
