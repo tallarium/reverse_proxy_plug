@@ -38,6 +38,14 @@ config :reverse_proxy_plug, :http_client, ReverseProxyPlug.HTTPClient.Adapters.H
 config :reverse_proxy_plug, :http_client, ReverseProxyPlug.HTTPClient.Adapters.Tesla
 ```
 
+You can also set the config as a per-plug basis, which will override any global config.
+Either of those must be set, otherwise the system will attempt to default to the HTTPoison
+adapter or raise if it's not present.
+
+```elixir
+plug ReverseProxyPlug, client: ReverseProxyPlug.HTTPClient.Adapters.Tesla
+```
+
 ## Usage
 
 The plug works best when used with

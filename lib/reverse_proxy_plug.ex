@@ -31,8 +31,8 @@ defmodule ReverseProxyPlug do
     end
 
     opts
+    |> ensure_http_client()
     |> Keyword.merge(upstream_parts)
-    |> Keyword.put_new(:client, http_client())
     |> Keyword.put_new(:client_options, [])
     |> Keyword.put_new(:response_mode, :stream)
     |> Keyword.put_new(:status_callbacks, %{})
@@ -413,11 +413,19 @@ defmodule ReverseProxyPlug do
     "#{host}:#{port}"
   end
 
-  defp http_client do
-    Application.get_env(
-      :reverse_proxy_plug,
-      :http_client,
-      HTTPClient.Adapters.HTTPoison
-    )
+  defp ensure_http_client(opts) do
+    client = opts[:client] || Application.get_env(:reverse_proxy_plug, :http_client)
+
+    cond do
+      not is_nil(client) ->
+        Keyword.put(opts, :client, client)
+
+      Code.ensure_loaded?(HTTPClient.Adapters.HTTPoison) and is_nil(client) ->
+        Keyword.put(opts, :client, HTTPClient.Adapters.HTTPoison)
+
+      true ->
+        raise ArgumentError,
+              ":client option or :reverse_proxy_plug, :http_client global config must be set"
+    end
   end
 end
