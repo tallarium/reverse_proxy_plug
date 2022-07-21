@@ -14,7 +14,8 @@ defmodule ReverseProxyPlug.MixProject do
       aliases: aliases(),
       deps: deps(),
       docs: docs(),
-      package: package()
+      package: package(),
+      dialyzer: [plt_add_apps: [:httpoison, :tesla]]
     ]
   end
 
@@ -58,7 +59,8 @@ defmodule ReverseProxyPlug.MixProject do
       {:mox, "~> 1.0", only: :test, optional: true},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:tesla, "~> 1.4", optional: true},
-      {:bypass, "~> 2.1.0", optional: true, only: :test}
+      {:bypass, "~> 2.1.0", optional: true, only: :test},
+      {:dialyxir, "~> 1.0", only: [:dev], runtime: false}
     ]
   end
 
