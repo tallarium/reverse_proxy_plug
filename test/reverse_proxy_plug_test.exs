@@ -152,6 +152,38 @@ defmodule ReverseProxyPlugTest do
            "deletes the content-length header"
   end
 
+  test "does not sets transfer-encoding headers for informational status class" do
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, TestReuse.get_stream_responder(%{status_code: 100}))
+
+    conn =
+      conn(:get, "/")
+      |> ReverseProxyPlug.call(ReverseProxyPlug.init(@opts))
+
+    resp_header_names =
+      conn.resp_headers
+      |> Enum.map(fn {name, _val} -> name end)
+
+    refute "transfer-encoding" in resp_header_names,
+           "deletes the transfer-encoding header if status class is informational"
+  end
+
+  test "does not sets transfer-encoding headers for no content status code" do
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, TestReuse.get_stream_responder(%{status_code: 204}))
+
+    conn =
+      conn(:post, "/", nil)
+      |> ReverseProxyPlug.call(ReverseProxyPlug.init(@opts))
+
+    resp_header_names =
+      conn.resp_headers
+      |> Enum.map(fn {name, _val} -> name end)
+
+    refute "transfer-encoding" in resp_header_names,
+           "deletes the transfer-encoding header if status code is no content"
+  end
+
   test "uses raw_body from assigns if body empty and raw_body present" do
     raw_body = "name=Jane"
     conn = conn(:post, "/users", nil)
