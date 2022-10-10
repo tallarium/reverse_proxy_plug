@@ -199,10 +199,11 @@ defmodule ReverseProxyPlug do
           end
 
         %HTTPoison.AsyncHeaders{headers: headers} ->
-          response_headers = headers
-          |> normalize_headers
-          |> Enum.reject(fn {header, _} -> header == "content-length" end)
-          |> Enum.concat([{"transfer-encoding", "chunked"}])
+          response_headers =
+            headers
+            |> normalize_headers
+            |> Enum.reject(fn {header, _} -> header == "content-length" end)
+            |> Enum.concat([{"transfer-encoding", "chunked"}])
 
           conn
           |> Conn.prepend_resp_headers(response_headers)
