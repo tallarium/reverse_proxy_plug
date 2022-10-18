@@ -203,9 +203,9 @@ defmodule ReverseProxyPlug do
             headers
             |> normalize_headers
             |> Enum.concat([{"transfer-encoding", "chunked"}])
-            |> Enum.reject(fn 
+            |> Enum.reject(fn
               {"content-length", _} -> true
-              {header, value} -> {header, value} in conn.resp_headers 
+              {header, value} -> {header, value} in conn.resp_headers
             end)
 
           conn
