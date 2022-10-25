@@ -199,10 +199,15 @@ defmodule ReverseProxyPlug do
           end
 
         %HTTPoison.AsyncHeaders{headers: headers} ->
+          additional_headers =
+            if conn.status >= 200 and conn.status != 204,
+              do: [{"transfer-encoding", "chunked"}],
+              else: []
+
           headers
           |> normalize_headers
           |> Enum.reject(fn {header, _} -> header == "content-length" end)
-          |> Enum.concat([{"transfer-encoding", "chunked"}])
+          |> Enum.concat(additional_headers)
           |> Enum.reduce(conn, fn {header, value}, conn ->
             Conn.put_resp_header(conn, header, value)
           end)
