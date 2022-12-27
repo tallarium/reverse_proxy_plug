@@ -530,8 +530,7 @@ defmodule ReverseProxyPlugTest do
       get_responder.(%{}).(request)
     end)
 
-    conn(:get, "/")
-    |> Plug.Conn.put_req_header("host", "custom.com:9999")
+    %Plug.Conn{conn(:get, "/") | host: "custom.com:9999"}
     |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
 
     assert_receive {:headers, headers}
@@ -548,8 +547,7 @@ defmodule ReverseProxyPlugTest do
       get_responder.(%{}).(request)
     end)
 
-    conn(:get, "/")
-    |> Plug.Conn.put_req_header("host", "custom.com:9999")
+    %Plug.Conn{conn(:get, "/") | host: "custom.com:9999"}
     |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
 
     assert_receive {:headers, headers}
@@ -566,8 +564,7 @@ defmodule ReverseProxyPlugTest do
       get_responder.(%{}).(request)
     end)
 
-    conn(:get, "/")
-    |> Plug.Conn.put_req_header("host", "custom.com:9999")
+    %Plug.Conn{conn(:get, "/") | host: "custom.com:9999"}
     |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
 
     assert_receive {:headers, headers}
