@@ -571,6 +571,53 @@ defmodule ReverseProxyPlugTest do
     assert_header(headers, "host", ["example-custom-port.com"])
   end
 
+  test_stream_and_buffer "truncate the request path if preserve_request_path is false" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+    opts_with_upstream = Keyword.merge(opts, upstream: "https://example.com")
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn %{url: url} = request ->
+      send(self(), {:url, url})
+      get_responder.(%{}).(request)
+    end)
+
+    %Plug.Conn{
+      conn(:get, "/")
+      | host: "custom.com:9999",
+        request_path: "/abc/123",
+        path_info: ["123"]
+    }
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
+
+    assert_receive {:url, url}
+    assert url == "https://example.com:443/123"
+  end
+
+  test_stream_and_buffer "don't truncate the request path if preserve_request_path is true" do
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    opts_with_upstream =
+      Keyword.merge(opts, upstream: "https://example.com")
+      |> Keyword.merge(preserve_request_path: true)
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn %{url: url} = request ->
+      send(self(), {:url, url})
+      get_responder.(%{}).(request)
+    end)
+
+    %Plug.Conn{
+      conn(:get, "/")
+      | host: "custom.com:9999",
+        request_path: "/abc/123",
+        path_info: ["123"]
+    }
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_upstream))
+
+    assert_receive {:url, url}
+    assert url == "https://example.com:443/abc/123"
+  end
+
   test_stream_and_buffer "returns gateway timeout on connect timeout" do
     %{opts: opts} = test_reuse_opts
 
