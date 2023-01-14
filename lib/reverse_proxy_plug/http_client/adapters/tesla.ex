@@ -23,10 +23,15 @@ if Code.ensure_loaded?(Tesla) do
         raise ":tesla_client option is required"
       end
 
+      query =
+        if is_map(request.query_params),
+          do: Map.to_list(request.query_params),
+          else: request.query_params
+
       tesla_opts =
         request
         |> Map.take([:url, :method, :body, :headers])
-        |> Map.put(:query, request.query_params)
+        |> Map.put(:query, query)
         |> Map.put(:opts, opts)
         |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
