@@ -359,7 +359,7 @@ defmodule ReverseProxyPlug do
   end
 
   defp get_cookies(%Conn{req_cookies: cookies}) do
-    cookies |> Enum.map(fn {k, v} -> "#{k}=#{v}" end) |> Enum.join("; ")
+    cookies |> Enum.map_join("; ", fn {k, v} -> "#{k}=#{v}" end)
   end
 
   def read_body(%{assigns: %{raw_body: raw_body}}), do: raw_body
