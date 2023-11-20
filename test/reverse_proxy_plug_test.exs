@@ -571,20 +571,14 @@ defmodule ReverseProxyPlugTest do
     assert_header(headers, "host", ["example-custom-port.com"])
   end
 
-  test_stream_and_buffer "returns gateway timeout on connect timeout" do
-    %{opts: opts} = test_reuse_opts
+  for timeout_reason <- ReverseProxyPlug.get_timeout_error_reasons() do
+    test_stream_and_buffer "returns gateway timeout on #{inspect(timeout_reason)} as error reason" do
+      %{opts: opts} = test_reuse_opts
 
-    conn = :get |> conn("/") |> simulate_upstream_error(:connect_timeout, opts)
+      conn = :get |> conn("/") |> simulate_upstream_error(unquote(timeout_reason), opts)
 
-    assert conn.status === 504
-  end
-
-  test_stream_and_buffer "returns gateway timeout on timeout" do
-    %{opts: opts} = test_reuse_opts
-
-    conn = :get |> conn("/") |> simulate_upstream_error(:timeout, opts)
-
-    assert conn.status === 504
+      assert conn.status === 504
+    end
   end
 
   test_stream_and_buffer "returns gateway error on a generic error" do

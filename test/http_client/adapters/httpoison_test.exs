@@ -69,5 +69,34 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.HTTPoisonTest do
         assert {:error, %Error{reason: :econnrefused}} == HTTPoisonClient.request(req)
       end
     end
+
+    test "should return error when request timeout" do
+      bypass = Bypass.open(port: 8002)
+      on_exit({Bypass, bypass.pid}, fn -> :ok end)
+      recv_timeout = 50
+
+      path = "/my-timeout-path"
+
+      req = %Request{
+        method: :get,
+        url: "http://localhost:8002#{path}",
+        options: [
+          recv_timeout: recv_timeout,
+          stream_to: self()
+        ]
+      }
+
+      Bypass.expect_once(bypass, fn %Plug.Conn{} = conn ->
+        assert conn.method == req.method |> to_string() |> String.upcase()
+        assert conn.request_path == path
+
+        Process.sleep(recv_timeout + 1)
+        Plug.Conn.send_resp(conn, 204, "")
+      end)
+
+      assert {:ok, %AsyncResponse{id: id}} = HTTPoisonClient.request(req)
+
+      assert_receive %HTTPoison.Error{id: ^id, reason: {:closed, :timeout}}, 1_000
+    end
   end
 end
