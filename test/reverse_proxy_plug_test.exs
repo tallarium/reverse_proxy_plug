@@ -609,6 +609,48 @@ defmodule ReverseProxyPlugTest do
     assert timeout_val == httpclient_options[:recv_timeout]
   end
 
+  test_stream_and_buffer "add upstream headers with prepend mode option" do
+    upstream_headers = [{"access-control-allow-origin", "*"}]
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    opts_with_headers_mode_prepend =
+      Keyword.merge(opts, stream_headers_mode: :prepend, buffer_headers_mode: :prepend)
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(
+      :request,
+      get_responder.(%{headers: upstream_headers})
+    )
+
+    conn =
+      conn(:get, "/")
+      |> Plug.Conn.put_resp_header("access-control-allow-origin", "https://localhost")
+      |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_headers_mode_prepend))
+
+    assert_header(conn.resp_headers, "access-control-allow-origin", ["*", "https://localhost"])
+  end
+
+  test_stream_and_buffer "add upstream headers with replace mode option" do
+    upstream_headers = [{"access-control-allow-origin", "*"}]
+    %{opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    opts_with_headers_mode_replace =
+      Keyword.merge(opts, stream_headers_mode: :replace, buffer_headers_mode: :replace)
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(
+      :request,
+      get_responder.(%{headers: upstream_headers})
+    )
+
+    conn =
+      conn(:get, "/")
+      |> Plug.Conn.put_resp_header("access-control-allow-origin", "https://localhost")
+      |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_headers_mode_replace))
+
+    assert_header(conn.resp_headers, "access-control-allow-origin", ["*"])
+  end
+
   test "can be initialised as a plug with an MFA error callback" do
     defmodule Test do
       use Plug.Builder
