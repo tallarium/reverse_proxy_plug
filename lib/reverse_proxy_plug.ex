@@ -10,6 +10,7 @@ defmodule ReverseProxyPlug do
 
   @behaviour Plug
   @http_methods ["GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"]
+  @timeout_error_reasons [:connect_timeout, :timeout, {:closed, :timeout}]
 
   @spec init(Keyword.t()) :: Keyword.t()
   def init(opts) do
@@ -57,6 +58,9 @@ defmodule ReverseProxyPlug do
     body = read_body(conn)
     conn |> request(body, opts) |> response(conn, opts)
   end
+
+  @doc false
+  def get_timeout_error_reasons, do: @timeout_error_reasons
 
   defp get_string(upstream, default \\ "")
 
@@ -149,7 +153,7 @@ defmodule ReverseProxyPlug do
   end
 
   defp status_from_error({:error, %HTTPClient.Error{id: nil, reason: reason}})
-       when reason in [:timeout, :connect_timeout] do
+       when reason in @timeout_error_reasons do
     :gateway_timeout
   end
 
@@ -225,6 +229,13 @@ defmodule ReverseProxyPlug do
 
         %HTTPoison.AsyncEnd{} ->
           conn
+
+        %HTTPoison.Error{reason: reason} ->
+          do_error_callback(
+            opts[:error_callback],
+            {:error, %HTTPClient.Error{reason: reason}},
+            conn
+          )
       end
     end
   end
