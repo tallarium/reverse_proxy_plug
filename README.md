@@ -28,9 +28,9 @@ def deps do
 end
 ```
 
-Then add an http client library, either [httpoison](https://hex.pm/packages/httpoison) or [tesla](https://hex.pm/packages/tesla)
-
-Also set configration:
+Then add an HTTP client library, either
+[httpoison](https://hex.pm/packages/httpoison) or
+[tesla](https://hex.pm/packages/tesla), and configure depending on your choice:
 
 ```elixir
 config :reverse_proxy_plug, :http_client, ReverseProxyPlug.HTTPClient.Adapters.HTTPoison
@@ -70,7 +70,135 @@ or a function with zero or one arity which returns one. If it is a function, it 
 evaluated for every request. If the function is arity one, the `Conn` struct will be
 passed to it, in order to have more flexibility in dynamic routing.
 
-### Usage in Phoenix
+### Modifying the client request body
+
+You can modify various aspects of the client request by simply modifying the
+`Conn` struct. In case you want to modify the request body, fetch it using
+`Conn.read_body/2`, make your changes, and leave it under
+`Conn.assigns[:raw_body]`. ReverseProxyPlug will use that as the request body.
+In case a custom raw body is not present, ReverseProxyPlug will fetch it from
+the `Conn` struct directly.
+
+## Configuration options
+
+### Custom HTTP methods
+
+Only standard HTTP methods in "GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS",
+"TRACE" and "PATCH" will be forwarded by default. You can specific define other custom
+HTTP methods in keyword :custom_http_methods.
+
+```elixir
+forward("/foo", to: ReverseProxyPlug, upstream: "//example.com/bar", custom_http_methods: [:XMETHOD])
+```
+
+### Preserve host header
+
+A reverse HTTP proxy often has to preserve the original `Host` request header
+when making a request to the upstream origin. Presenting a different `Host` to
+the upstream server can lead to issues related to cookies, redirects, and
+incorrect routing that can become a security concern.
+
+Some HTTP proxies send the original `Host` value in other headers, like
+`Forwarded` or `X-Forwarded-Host`, but those are only useful if the upstream
+application is coded to read those headers.
+
+By default, ReverseProxyPlug does not preserve the original header nor does it
+send the original header in any other form. Use `:preserve_host_header` to make
+upstream requests with the same `Host` header as in the original request.
+
+```elixir
+forward("/foo", to: ReverseProxyPlug, upstream: "//example.com", preserve_host_header: true)
+```
+
+### Response mode
+
+`ReverseProxyPlug` supports two response modes:
+
+- `:stream` (default) - The response from the plug will always be chunk
+encoded. If the upstream server sends a chunked response, ReverseProxyPlug
+will pass chunks to the clients as soon as they arrive, resulting in zero
+delay.
+
+- `:buffer` - The plug will wait until the whole response is received from
+the upstream server, at which point it will send it to the client using
+`Conn.send_resp`. This allows for processing the response before sending it
+back using `Conn.register_before_send`.
+
+You can choose the response mode by passing a `:response_mode` option:
+```elixir
+forward("/foo", to: ReverseProxyPlug, response_mode: :buffer, upstream: "//example.com/bar")
+```
+
+### Client options
+
+You can pass options to the configured HTTP client. Valid options depend on the HTTP client used.
+
+```elixir
+forward("/foo", to: ReverseProxyPlug, upstream: "//example.com", client_options: [timeout: 2000])
+```
+
+### Callback for connection errors
+
+By default, `ReverseProxyPlug` will automatically respond with 502 Bad Gateway
+in case of network error. To inspect the HTTPoison error that caused the
+response, you can pass an `:error_callback` option.
+
+```elixir
+plug(ReverseProxyPlug,
+  upstream: "example.com",
+  error_callback: fn error -> Logger.error("Network error: #{inspect(error)}") end
+)
+```
+
+If you wish to handle the response directly, you can provide a function with
+arity 2 where the connection will be passed as the second argument:
+
+```elixir
+plug(ReverseProxyPlug,
+  upstream: "example.com",
+  error_callback: fn error, conn ->
+    Logger.error("Network error: #{inspect(error)}")
+    Plug.Conn.send_resp(conn, :internal_server_error, "something went wrong")
+  end)
+)
+```
+
+You can also provide a MFA (module, function, arguments) tuple, to which the
+error will be inserted as the last argument:
+
+```elixir
+plug(ReverseProxyPlug,
+  upstream: "example.com",
+  error_callback: {MyErrorHandler, :handle_proxy_error, ["example.com"]}
+)
+```
+
+If the function specified by the MFA tuple supports two additional arguments,
+the error and connection will inserted as the last two arguments, respectively.
+
+### Callbacks for responses in streaming mode
+
+In order to add special handling for responses with particular statuses instead
+of passing them on to the client as usual, provide the `:status_callbacks`
+option with a map from status code to handler:
+
+```elixir
+plug(ReverseProxyPlug,
+  upstream: "example.com",
+  status_callbacks: %{404 => &handle_404/2}
+)
+```
+
+The handler is called as soon as an `HTTPoison.AsyncStatus` message with the
+given status is received, taking the `Plug.Conn` and the options given to
+`ReverseProxyPlug`. It must then consume all the remaining incoming HTTPoison
+asynchronous response parts, respond to the client and return the `Plug.Conn`.
+
+`:status_callbacks` must only be given when `:response_mode` is `:stream`,
+which is the default.
+
+## Usage in Phoenix
+
 The Phoenix default autogenerated project assumes that you'll want to
 parse all request bodies coming to your Phoenix server and puts `Plug.Parsers`
 directly in your `endpoint.ex`. If you're using something like ReverseProxyPlug,
@@ -123,104 +251,6 @@ in the `router.ex`:
     end
   end
 ```
-
-### Modifying the client request body
-You can modify various aspects of the client request by simply modifying the
-`Conn` struct. In case you want to modify the request body, fetch it using
-`Conn.read_body/2`, make your changes, and leave it under
-`Conn.assigns[:raw_body]`. ReverseProxyPlug will use that as the request body.
-In case a custom raw body is not present, ReverseProxyPlug will fetch it from
-the `Conn` struct directly.
-
-### Response mode
-
-`ReverseProxyPlug` supports two response modes:
-
-- `:stream` (default) - The response from the plug will always be chunk
-encoded. If the upstream server sends a chunked response, ReverseProxyPlug
-will pass chunks to the clients as soon as they arrive, resulting in zero
-delay.
-
-- `:buffer` - The plug will wait until the whole response is received from
-the upstream server, at which point it will send it to the client using
-`Conn.send_resp`. This allows for processing the response before sending it
-back using `Conn.register_before_send`.
-
-You can choose the response mode by passing a `:response_mode` option:
-```elixir
-forward("/foo", to: ReverseProxyPlug, response_mode: :buffer, upstream: "//example.com/bar")
-```
-
-### Custom HTTP methods
-
-Only standard HTTP methods in "GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS",
-"TRACE" and "PATCH" will be forwarded by default. You can specific define other custom
-HTTP methods in keyword :custom_http_methods.
-
-```elixir
-forward("/foo", to: ReverseProxyPlug, upstream: "//example.com/bar", custom_http_methods: [:XMETHOD])
-```
-
-### Connection errors
-
-By default, `ReverseProxyPlug` will automatically respond with 502 Bad Gateway
-in case of network error. To inspect the HTTPoison error that caused the
-response, you can pass an `:error_callback` option.
-
-```elixir
-plug(ReverseProxyPlug,
-  upstream: "example.com",
-  error_callback: fn error -> Logger.error("Network error: #{inspect(error)}") end
-)
-```
-
-If you wish to handle the response directly, you can provide a function with
-arity 2 where the connection will be passed as the second argument:
-
-```elixir
-plug(ReverseProxyPlug,
-  upstream: "example.com",
-  error_callback: fn error, conn ->
-    Logger.error("Network error: #{inspect(error)}")
-    Plug.Conn.send_resp(conn, :internal_server_error, "something went wrong")
-  end)
-)
-```
-
-You can also provide a MFA (module, function, arguments) tuple, to which the
-error will be inserted as the last argument:
-
-```elixir
-plug(ReverseProxyPlug,
-  upstream: "example.com",
-  error_callback: {MyErrorHandler, :handle_proxy_error, ["example.com"]}
-)
-```
-
-If the function specified by the MFA tuple supports two additional arguments,
-the error and connection will inserted as the last two arguments, respectively.
-
-
-### Callbacks for responses in streaming mode
-
-In order to add special handling for responses with particular statuses instead
-of passing them on to the client as usual, provide the `:status_callbacks`
-option with a map from status code to handler:
-
-```elixir
-plug(ReverseProxyPlug,
-  upstream: "example.com",
-  status_callbacks: %{404 => &handle_404/2}
-)
-```
-
-The handler is called as soon as an `HTTPoison.AsyncStatus` message with the
-given status is received, taking the `Plug.Conn` and the options given to
-`ReverseProxyPlug`. It must then consume all the remaining incoming HTTPoison
-asynchronous response parts, respond to the client and return the `Plug.Conn`.
-
-`:status_callbacks` must only be given when `:response_mode` is `:stream`,
-which is the default.
 
 ## Copyright and License
 
