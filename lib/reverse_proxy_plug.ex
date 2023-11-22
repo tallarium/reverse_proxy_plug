@@ -236,6 +236,7 @@ defmodule ReverseProxyPlug do
       conn
       |> Map.to_list()
       |> Enum.filter(fn {key, _} -> key in keys end)
+      |> Keyword.put(:host, conn.host)
       |> Keyword.merge(Enum.filter(overrides, fn {_, val} -> val end))
 
     request_path = Enum.join(conn.path_info, "/")
@@ -274,10 +275,14 @@ defmodule ReverseProxyPlug do
       |> normalize_headers
       |> add_x_fwd_for_header(conn)
 
-    headers =
-      if options[:preserve_host_header],
-        do: headers,
-        else: List.keyreplace(headers, "host", 0, {"host", host_header_from_url(url)})
+    proxy_req_host =
+      if options[:preserve_host_header] do
+        conn.host
+      else
+        host_header_from_url(url)
+      end
+
+    headers = List.keystore(headers, "host", 0, {"host", proxy_req_host})
 
     client_options =
       options[:response_mode]
