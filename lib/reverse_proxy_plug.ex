@@ -36,6 +36,8 @@ defmodule ReverseProxyPlug do
     |> Keyword.merge(upstream_parts)
     |> Keyword.put_new(:client_options, [])
     |> Keyword.put_new(:response_mode, :stream)
+    |> Keyword.put_new(:stream_headers_mode, :replace)
+    |> Keyword.put_new(:buffer_headers_mode, :prepend)
     |> Keyword.put_new(:status_callbacks, %{})
     |> Keyword.update(:error_callback, nil, fn
       {m, f, a} -> {m, f, a}
@@ -171,14 +173,11 @@ defmodule ReverseProxyPlug do
          :buffer,
          conn,
          %{status_code: status, body: body, headers: headers},
-         _opts
+         opts
        ) do
-    resp_headers =
-      headers
-      |> normalize_headers
-
-    conn
-    |> Conn.prepend_resp_headers(resp_headers)
+    headers
+    |> normalize_headers
+    |> add_resp_headers(conn, opts[:buffer_headers_mode])
     |> Conn.resp(status, body)
   end
 
@@ -212,9 +211,7 @@ defmodule ReverseProxyPlug do
           |> normalize_headers
           |> Enum.reject(fn {header, _} -> header == "content-length" end)
           |> Enum.concat(additional_headers)
-          |> Enum.reduce(conn, fn {header, value}, conn ->
-            Conn.put_resp_header(conn, header, value)
-          end)
+          |> add_resp_headers(conn, opts[:stream_headers_mode])
           |> Conn.send_chunked(conn.status)
           |> stream_response(opts)
 
@@ -448,5 +445,15 @@ defmodule ReverseProxyPlug do
         raise ArgumentError,
               ":client option or :reverse_proxy_plug, :http_client global config must be set"
     end
+  end
+
+  defp add_resp_headers(resp_headers, conn, :prepend) do
+    Conn.prepend_resp_headers(conn, resp_headers)
+  end
+
+  defp add_resp_headers(resp_headers, conn, :replace) do
+    Enum.reduce(resp_headers, conn, fn {header, value}, conn ->
+      Conn.put_resp_header(conn, header, value)
+    end)
   end
 end
