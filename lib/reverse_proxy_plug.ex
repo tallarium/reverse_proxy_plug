@@ -459,7 +459,7 @@ defmodule ReverseProxyPlug do
   end
 
   defp replace_path_variables(path, path_params) do
-    Regex.replace(~r/:([A-z]+)/, path, fn match, var_name ->
+    Regex.replace(~r/:([a-zA-Z_]+)/, path, fn match, var_name ->
       Map.get(path_params, var_name, match)
     end)
   end
