@@ -189,7 +189,7 @@ defmodule ReverseProxyPlugTest do
     conn = conn(:post, "/users", nil)
     conn = update_in(conn.assigns[:raw_body], fn _ -> raw_body end)
 
-    assert ReverseProxyPlug.read_body(conn) == raw_body
+    assert ReverseProxyPlug.read_body(conn) == {raw_body, conn}
   end
 
   test "ignores body when not empty when raw_body is provided" do
@@ -197,7 +197,23 @@ defmodule ReverseProxyPlugTest do
     conn = conn(:post, "/users", "not raw body")
     conn = update_in(conn.assigns[:raw_body], fn _ -> raw_body end)
 
-    refute ReverseProxyPlug.read_body(conn) == "not raw body"
+    refute ReverseProxyPlug.read_body(conn) == {"not raw body", conn}
+  end
+
+  test "unfolds read of body" do
+    body = :binary.copy("abc", 100)
+    conn = conn(:post, "/users", body)
+    {:ok, _, finished_read_conn} = conn |> Plug.Conn.read_body()
+
+    assert ReverseProxyPlug.read_body(conn) == {body, finished_read_conn}
+  end
+
+  test "unfolds and combines partial reads of body" do
+    body = :binary.copy("abc", 100)
+    conn = conn(:post, "/users", body)
+    {:ok, _, finished_read_conn} = conn |> Plug.Conn.read_body()
+
+    assert ReverseProxyPlug.read_body(conn, length: 100) == {body, finished_read_conn}
   end
 
   test "missing upstream opt results in KeyError" do
