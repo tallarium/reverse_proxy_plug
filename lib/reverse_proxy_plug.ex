@@ -334,8 +334,9 @@ defmodule ReverseProxyPlug do
       "upgrade"
     ]
 
+    # We downcase here, in case a custom :normalize_headers function does not downcase headers
     headers
-    |> Enum.reject(fn {header, _} -> Enum.member?(hop_by_hop_headers, header) end)
+    |> Enum.reject(fn {header, _} -> Enum.member?(hop_by_hop_headers, String.downcase(header)) end)
   end
 
   defp add_x_fwd_for_header(headers, conn) do
