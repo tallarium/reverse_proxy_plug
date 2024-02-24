@@ -32,6 +32,8 @@ defmodule ReverseProxyPlugTest do
     {"host", "example.com"}
   ]
 
+  @error %HTTPClient.Error{reason: :timeout}
+
   setup :verify_on_exit!
 
   test "receives buffer response" do
@@ -59,7 +61,7 @@ defmodule ReverseProxyPlugTest do
       ReverseProxyPlug.TeslaMock,
       :call,
       fn %Tesla.Env{}, _opts ->
-        {:ok, Tesla.Mock.json(body, status: 200, headers: headers)}
+        {:ok, Tesla.Mock.json(body, status: 200, method: :get, headers: headers)}
       end
     )
 
@@ -349,11 +351,10 @@ defmodule ReverseProxyPlugTest do
 
   test_stream_and_buffer "returns bad gateway on error" do
     %{opts: opts} = test_reuse_opts
-    error = {:error, :some_reason}
 
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _request ->
-      error
+      @error
     end)
 
     conn = conn(:get, "/") |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts))
@@ -389,29 +390,27 @@ defmodule ReverseProxyPlugTest do
 
   test_stream_and_buffer "calls error callback if supplied" do
     %{opts: opts} = test_reuse_opts
-    error = {:error, :some_reason}
 
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _request ->
-      error
+      @error
     end)
 
     opts_with_callback = Keyword.merge(opts, error_callback: &ErrorHandling.fun_error_callback/1)
 
     conn = conn(:get, "/") |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_callback))
 
-    assert_receive({:got_error, ^error})
+    assert_receive({:got_error, @error})
     refute_receive({:got_conn, _})
     assert %Plug.Conn{status: 502} = conn
   end
 
   test_stream_and_buffer "calls error callback with arity 2 if supplied" do
     %{opts: opts} = test_reuse_opts
-    error = {:error, :some_reason}
 
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _request ->
-      error
+      @error
     end)
 
     opts_with_callback = Keyword.merge(opts, error_callback: &ErrorHandling.fun_error_callback/2)
@@ -420,18 +419,17 @@ defmodule ReverseProxyPlugTest do
 
     resp_conn = ReverseProxyPlug.call(conn, ReverseProxyPlug.init(opts_with_callback))
 
-    assert_receive({:got_error, ^error})
+    assert_receive({:got_error, @error})
     assert_receive({:got_conn, ^conn})
     assert %Plug.Conn{status: 500} = resp_conn
   end
 
   test_stream_and_buffer "calls error callback if supplied as MFA tuple" do
     %{opts: opts} = test_reuse_opts
-    error = {:error, :some_reason}
 
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _request ->
-      error
+      @error
     end)
 
     opts_with_callback =
@@ -440,17 +438,16 @@ defmodule ReverseProxyPlugTest do
     conn(:get, "/") |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_callback))
 
     assert_receive({:got_arg, 123})
-    assert_receive({:got_error, ^error})
+    assert_receive({:got_error, @error})
     refute_receive({:got_conn, _})
   end
 
   test_stream_and_buffer "calls error callback with higher arity if present" do
     %{opts: opts} = test_reuse_opts
-    error = {:error, :some_reason}
 
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _request ->
-      error
+      @error
     end)
 
     opts_with_callback =
@@ -461,7 +458,7 @@ defmodule ReverseProxyPlugTest do
     resp_conn = ReverseProxyPlug.call(conn, ReverseProxyPlug.init(opts_with_callback))
 
     assert_receive({:got_arg, 123})
-    assert_receive({:got_error, ^error})
+    assert_receive({:got_error, @error})
     assert_receive({:got_conn, ^conn})
     assert %Plug.Conn{status: 500} = resp_conn
   end
