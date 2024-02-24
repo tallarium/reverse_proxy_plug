@@ -26,7 +26,7 @@ defmodule TestReuse do
       end)
 
       send(self(), %HTTPoison.AsyncEnd{})
-      {:ok, nil}
+      {:ok, %HTTPClient.AsyncResponse{}}
     end
   end
 
