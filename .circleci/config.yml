@@ -29,4 +29,6 @@ jobs:
           key: v1-build-cache-{{ .Branch }}
           paths: "_build"
 
-      - run: mix test --trace
+      - store_artifacts:
+          path: cover/excoveralls.html
+          destination: coverage.html
