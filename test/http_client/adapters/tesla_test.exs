@@ -27,8 +27,8 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.TeslaTest do
           options: [tesla_client: client()]
         }
 
-        expect(TeslaMock, :call, fn %Tesla.Env{}, _opts ->
-          {:ok, json(%{"my" => "result"}, status: 200, method: req.method)}
+        expect(TeslaMock, :call, fn %Tesla.Env{__client__: client}, _opts ->
+          {:ok, json(%{"my" => "result"}, status: 200, method: req.method, __client__: client)}
         end)
 
         assert {:ok, %Response{body: ~s[{"my":"result"}], status_code: 200}} =

@@ -60,8 +60,9 @@ defmodule ReverseProxyPlugTest do
     expect(
       ReverseProxyPlug.TeslaMock,
       :call,
-      fn %Tesla.Env{}, _opts ->
-        {:ok, Tesla.Mock.json(body, status: 200, method: :get, headers: headers)}
+      fn %Tesla.Env{__client__: client}, _opts ->
+        {:ok,
+         Tesla.Mock.json(body, status: 200, method: :get, headers: headers, __client__: client)}
       end
     )
 
@@ -250,9 +251,9 @@ defmodule ReverseProxyPlugTest do
 
   test "transforms request headers in a custom manner" do
     ReverseProxyPlug.HTTPClientMock
-    |> expect(:request, fn %{headers: headers} ->
+    |> expect(:request, fn %{headers: headers} = request ->
       send(self(), {:headers, headers})
-      TestReuse.make_response(%{status_code: 200})
+      {:ok, TestReuse.make_response(%{status_code: 200}, request)}
     end)
 
     conn(:get, "/")
@@ -354,7 +355,7 @@ defmodule ReverseProxyPlugTest do
 
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _request ->
-      @error
+      {:error, %HTTPClient.Error{reason: :no_reason}}
     end)
 
     conn = conn(:get, "/") |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts))
@@ -363,12 +364,12 @@ defmodule ReverseProxyPlugTest do
   end
 
   defmodule ErrorHandling do
-    def mfa_error_callback(arg, error) do
+    def mfa_error_callback(arg, {:error, error}) do
       send(self(), {:got_arg, arg})
       send(self(), {:got_error, error})
     end
 
-    def mfa_error_callback(arg, error, conn) do
+    def mfa_error_callback(arg, {:error, error}, conn) do
       send(self(), {:got_arg, arg})
       send(self(), {:got_error, error})
       send(self(), {:got_conn, conn})
@@ -377,11 +378,11 @@ defmodule ReverseProxyPlugTest do
 
     def mfa_error_callback1(arg, error), do: mfa_error_callback(arg, error)
 
-    def fun_error_callback(error) do
+    def fun_error_callback({:error, error}) do
       send(self(), {:got_error, error})
     end
 
-    def fun_error_callback(error, conn) do
+    def fun_error_callback({:error, error}, conn) do
       send(self(), {:got_error, error})
       send(self(), {:got_conn, conn})
       resp(conn, :internal_server_error, "internal server error")
@@ -391,16 +392,18 @@ defmodule ReverseProxyPlugTest do
   test_stream_and_buffer "calls error callback if supplied" do
     %{opts: opts} = test_reuse_opts
 
+    error = %HTTPClient.Error{reason: :no_reason}
+
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _request ->
-      @error
+      {:error, error}
     end)
 
     opts_with_callback = Keyword.merge(opts, error_callback: &ErrorHandling.fun_error_callback/1)
 
     conn = conn(:get, "/") |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_callback))
 
-    assert_receive({:got_error, @error})
+    assert_receive({:got_error, ^error})
     refute_receive({:got_conn, _})
     assert %Plug.Conn{status: 502} = conn
   end
@@ -410,7 +413,7 @@ defmodule ReverseProxyPlugTest do
 
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _request ->
-      @error
+      {:error, @error}
     end)
 
     opts_with_callback = Keyword.merge(opts, error_callback: &ErrorHandling.fun_error_callback/2)
@@ -429,7 +432,7 @@ defmodule ReverseProxyPlugTest do
 
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _request ->
-      @error
+      {:error, @error}
     end)
 
     opts_with_callback =
@@ -447,7 +450,7 @@ defmodule ReverseProxyPlugTest do
 
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _request ->
-      @error
+      {:error, @error}
     end)
 
     opts_with_callback =
@@ -788,11 +791,9 @@ defmodule ReverseProxyPlugTest do
   end
 
   defp simulate_upstream_error(conn, reason, opts) do
-    error = {:error, %HTTPClient.Error{id: nil, reason: reason}}
-
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, fn _request ->
-      error
+      {:error, %HTTPClient.Error{reason: reason}}
     end)
 
     ReverseProxyPlug.call(conn, ReverseProxyPlug.init(opts))
