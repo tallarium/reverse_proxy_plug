@@ -15,6 +15,7 @@ defmodule ReverseProxyPlug.MixProject do
       deps: deps(),
       docs: docs(),
       package: package(),
+      test_coverage: [tool: ExCoveralls],
       dialyzer: [plt_add_apps: [:httpoison, :tesla]]
     ]
   end
@@ -35,7 +36,8 @@ defmodule ReverseProxyPlug.MixProject do
       ci: [
         "format --check-formatted",
         "credo --strict",
-        "compile --warnings-as-errors --force"
+        "compile --warnings-as-errors --force",
+        "coveralls.html"
       ]
     ]
   end
@@ -51,6 +53,7 @@ defmodule ReverseProxyPlug.MixProject do
 
   defp deps do
     [
+      {:excoveralls, "~> 0.18", only: :test},
       {:mix_test_watch, "~> 1.1", only: [:dev, :test], runtime: false},
       {:plug, "~> 1.6"},
       {:cowboy, "~> 2.4"},
