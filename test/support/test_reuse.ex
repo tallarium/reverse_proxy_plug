@@ -5,15 +5,15 @@ defmodule TestReuse do
   alias ReverseProxyPlug.HTTPClient
 
   def get_buffer_responder(response_args) do
-    fn _request ->
-      {:ok, make_response(response_args)}
+    fn request ->
+      {:ok, make_response(response_args, request)}
     end
   end
 
   def get_stream_responder(response_args) do
-    %{status_code: code, headers: headers, body: body} = make_response(response_args)
+    fn request ->
+      %{status_code: code, headers: headers, body: body} = make_response(response_args, request)
 
-    fn _request ->
       send(self(), %HTTPoison.AsyncStatus{code: code})
       send(self(), %HTTPoison.AsyncHeaders{headers: headers})
 
@@ -52,11 +52,12 @@ defmodule TestReuse do
     end
   end
 
-  def make_response(%{} = args) do
+  def make_response(%{} = args, request) do
     %HTTPClient.Response{
       status_code: args[:status_code] || 200,
       headers: args[:headers] || [],
-      body: args[:body] || "Success"
+      body: args[:body] || "Success",
+      request: request
     }
   end
 end
