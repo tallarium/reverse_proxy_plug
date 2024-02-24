@@ -55,7 +55,7 @@ defmodule ReverseProxyPlug.MixProject do
       {:plug, "~> 1.6"},
       {:cowboy, "~> 2.4"},
       {:httpoison, "~> 1.2 or ~> 2.0", optional: true},
-      {:credo, "~> 1.0", only: [:dev, :test]},
+      {:credo, "~> 1.0", only: [:dev, :test], runtime: false},
       {:mox, "~> 1.0", only: :test, optional: true},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:tesla, "~> 1.4", optional: true},
