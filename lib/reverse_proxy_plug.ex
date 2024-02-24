@@ -57,7 +57,7 @@ defmodule ReverseProxyPlug do
       opts
       |> Keyword.merge(upstream_parts)
 
-    body = read_body(conn)
+    {body, conn} = read_body(conn)
     conn |> request(body, opts) |> response(conn, opts)
   end
 
@@ -375,36 +375,25 @@ defmodule ReverseProxyPlug do
     cookies |> Enum.map_join("; ", fn {k, v} -> "#{k}=#{v}" end)
   end
 
-  def read_body(%{assigns: %{raw_body: raw_body}}), do: raw_body
+  def read_body(conn, opts \\ [])
 
-  def read_body(conn) do
-    case Conn.read_body(conn) do
-      {:ok, body, _conn} ->
-        body
+  def read_body(%{assigns: %{raw_body: raw_body}} = conn, _opts), do: {raw_body, conn}
 
-      {:more, body, conn} ->
-        {:stream,
-         Stream.resource(
-           fn -> {body, conn} end,
-           fn
-             {body, conn} ->
-               {[body], conn}
+  def read_body(conn, opts) do
+    Stream.unfold(Plug.Conn.read_body(conn, opts), fn
+      :done ->
+        nil
 
-             nil ->
-               {:halt, nil}
+      {:ok, body, new_conn} ->
+        {{new_conn, body}, :done}
 
-             conn ->
-               case Conn.read_body(conn) do
-                 {:ok, body, _conn} ->
-                   {[body], nil}
-
-                 {:more, body, conn} ->
-                   {[body], conn}
-               end
-           end,
-           fn _ -> nil end
-         )}
-    end
+      {:more, partial_body, new_conn} ->
+        {partial_body, Plug.Conn.read_body(new_conn, opts)}
+    end)
+    |> Enum.reduce({"", conn}, fn
+      {new_conn, body}, {body_acc, _conn_acc} -> {body_acc <> body, new_conn}
+      partial_body, {body_acc, conn_acc} -> {body_acc <> partial_body, conn_acc}
+    end)
   end
 
   defp host_header_from_url(url) when is_binary(url) do
