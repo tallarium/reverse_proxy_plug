@@ -38,6 +38,7 @@ defmodule ReverseProxyPlug do
     |> Keyword.put_new(:response_mode, :stream)
     |> Keyword.put_new(:stream_headers_mode, :replace)
     |> Keyword.put_new(:buffer_headers_mode, :prepend)
+    |> Keyword.put_new(:normalize_headers, &ReverseProxyPlug.downcase_headers/1)
     |> Keyword.put_new(:status_callbacks, %{})
     |> Keyword.update(:error_callback, nil, fn
       {m, f, a} -> {m, f, a}
@@ -176,7 +177,8 @@ defmodule ReverseProxyPlug do
          opts
        ) do
     headers
-    |> normalize_headers
+    |> opts[:normalize_headers].()
+    |> remove_hop_by_hop_headers
     |> add_resp_headers(conn, opts[:buffer_headers_mode])
     |> Conn.resp(status, body)
   end
@@ -208,7 +210,8 @@ defmodule ReverseProxyPlug do
               else: []
 
           headers
-          |> normalize_headers
+          |> opts[:normalize_headers].()
+          |> remove_hop_by_hop_headers
           |> Enum.reject(fn {header, _} -> header == "content-length" end)
           |> Enum.concat(additional_headers)
           |> add_resp_headers(conn, opts[:stream_headers_mode])
@@ -280,7 +283,8 @@ defmodule ReverseProxyPlug do
 
     headers =
       conn.req_headers
-      |> normalize_headers
+      |> options[:normalize_headers].()
+      |> remove_hop_by_hop_headers
       |> add_x_fwd_for_header(conn)
 
     proxy_req_host =
@@ -313,13 +317,7 @@ defmodule ReverseProxyPlug do
     |> Keyword.put_new(:recv_timeout, :infinity)
   end
 
-  defp normalize_headers(headers) do
-    headers
-    |> downcase_headers
-    |> remove_hop_by_hop_headers
-  end
-
-  defp downcase_headers(headers) do
+  def downcase_headers(headers) do
     headers
     |> Enum.map(fn {header, value} -> {String.downcase(header), value} end)
   end

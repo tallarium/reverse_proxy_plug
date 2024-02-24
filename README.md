@@ -110,6 +110,15 @@ upstream requests with the same `Host` header as in the original request.
 forward("/foo", to: ReverseProxyPlug, upstream: "//example.com", preserve_host_header: true)
 ```
 
+### Normalize headers for upstream request
+
+An upstream request will downcase all request header names by default (`ReverseProxyPlug.downcase_headers/1`)
+
+You can override this behaviour by passing your own `normalize_headers/1`, which can transform
+a list of headers - a list of `{"header", "value"}` tuples - and return them in the form desired.
+For instance, you may want to drop certain headers in the upstream request, beyond the usual hop-by-hop
+headers.
+
 ### Response mode
 
 `ReverseProxyPlug` supports two response modes:
