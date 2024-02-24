@@ -2,7 +2,7 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.TeslaTest do
   use ExUnit.Case, async: false
 
   import Tesla.Mock, only: [json: 2]
-  import Mox
+  import Hammox
 
   alias ReverseProxyPlug.HTTPClient.Adapters.Tesla, as: TeslaClient
 

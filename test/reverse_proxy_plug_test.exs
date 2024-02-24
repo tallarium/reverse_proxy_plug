@@ -5,7 +5,7 @@ defmodule ReverseProxyPlugTest do
 
   alias ReverseProxyPlug.HTTPClient
 
-  import Mox
+  import Hammox
 
   @opts [
     upstream: "example.com",
