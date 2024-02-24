@@ -3,6 +3,7 @@ defmodule TestReuse do
   @default_opts upstream: "example.com", client: ReverseProxyPlug.HTTPClientMock
 
   alias ReverseProxyPlug.HTTPClient
+  alias ReverseProxyPlug.HTTPClient.Adapters.HTTPoison, as: HTTPoisonAdapter
 
   def get_buffer_responder(response_args) do
     fn request ->
@@ -37,6 +38,9 @@ defmodule TestReuse do
           opts: [response_mode: :stream] ++ unquote(@default_opts),
           get_responder: &TestReuse.get_stream_responder/1
         }
+
+        ReverseProxyPlug.HTTPClientMock
+        |> stub(:stream_response, &HTTPoisonAdapter.stream_response/1)
 
         unquote(body)
       end

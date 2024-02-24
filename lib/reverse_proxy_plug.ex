@@ -44,6 +44,7 @@ defmodule ReverseProxyPlug do
       {m, f, a} -> {m, f, a}
       fun when is_function(fun) -> fun
     end)
+    |> ensure_response_mode_compatibility()
   end
 
   @spec call(Plug.Conn.t(), Keyword.t()) :: Plug.Conn.t()
@@ -183,32 +184,26 @@ defmodule ReverseProxyPlug do
     |> Conn.resp(status, body)
   end
 
-  if {:module, HTTPoison} == Code.ensure_loaded(HTTPoison) do
-    # This section of the code is present for retrocompatibility
-    # for the case where HTTPoison is the underlying HTTP Client
-    defp process_response(:stream, conn, _resp, opts),
-      do: stream_response(conn, opts)
+  defp process_response(:stream, initial_conn, %HTTPClient.AsyncResponse{} = resp, opts) do
+    resp
+    |> opts[:client].stream_response()
+    |> Enum.reduce_while(initial_conn, fn
+      {:status, status}, conn ->
+        case opts[:status_callbacks][status] do
+          nil ->
+            {:cont, conn |> Conn.put_status(status)}
 
-    @spec stream_response(Conn.t(), Keyword.t()) :: Conn.t()
-    defp stream_response(conn, opts) do
-      receive do
-        %HTTPoison.AsyncStatus{code: code} ->
-          case opts[:status_callbacks][code] do
-            nil ->
-              conn
-              |> Conn.put_status(code)
-              |> stream_response(opts)
+          handler ->
+            {:halt, handler.(conn, opts)}
+        end
 
-            handler ->
-              handler.(conn, opts)
-          end
+      {:headers, headers}, conn ->
+        additional_headers =
+          if conn.status >= 200 and conn.status != 204,
+            do: [{"transfer-encoding", "chunked"}],
+            else: []
 
-        %HTTPoison.AsyncHeaders{headers: headers} ->
-          additional_headers =
-            if conn.status >= 200 and conn.status != 204,
-              do: [{"transfer-encoding", "chunked"}],
-              else: []
-
+        conn =
           headers
           |> opts[:normalize_headers].()
           |> remove_hop_by_hop_headers
@@ -216,28 +211,18 @@ defmodule ReverseProxyPlug do
           |> Enum.concat(additional_headers)
           |> add_resp_headers(conn, opts[:stream_headers_mode])
           |> Conn.send_chunked(conn.status)
-          |> stream_response(opts)
 
-        %HTTPoison.AsyncChunk{chunk: chunk} ->
-          case Conn.chunk(conn, chunk) do
-            {:ok, conn} ->
-              stream_response(conn, opts)
+        {:cont, conn}
 
-            {:error, :closed} ->
-              conn
-          end
+      {:chunk, chunk}, conn ->
+        case Conn.chunk(conn, chunk) do
+          {:ok, conn_after_chunk} -> {:cont, conn_after_chunk}
+          {:error, _error} -> {:halt, conn}
+        end
 
-        %HTTPoison.AsyncEnd{} ->
-          conn
-
-        %HTTPoison.Error{reason: reason} ->
-          do_error_callback(
-            opts[:error_callback],
-            {:error, %HTTPClient.Error{reason: reason}},
-            conn
-          )
-      end
-    end
+      {:error, error}, conn ->
+        {:halt, do_error_callback(opts[:error_callback], error, conn)}
+    end)
   end
 
   defp prepare_url(conn, overrides) do
@@ -432,6 +417,16 @@ defmodule ReverseProxyPlug do
       true ->
         raise ArgumentError,
               ":client option or :reverse_proxy_plug, :http_client global config must be set"
+    end
+  end
+
+  defp ensure_response_mode_compatibility(opts) do
+    if opts[:response_mode] == :stream and
+         not function_exported?(opts[:client], :stream_response, 1) do
+      raise ArgumentError,
+            "The client adapter does not support streaming responses. Please use :buffer response mode."
+    else
+      opts
     end
   end
 

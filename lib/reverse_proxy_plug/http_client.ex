@@ -10,4 +10,8 @@ defmodule ReverseProxyPlug.HTTPClient do
                | __MODULE__.AsyncResponse.t()
                | __MODULE__.MaybeRedirect.t()}
               | {:error, error()}
+
+  @callback stream_response(__MODULE__.AsyncResponse.t()) :: Enumerable.t()
+
+  @optional_callbacks stream_response: 1
 end
