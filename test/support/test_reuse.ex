@@ -52,7 +52,7 @@ defmodule TestReuse do
     end
   end
 
-  defp make_response(%{} = args) do
+  def make_response(%{} = args) do
     %HTTPClient.Response{
       status_code: args[:status_code] || 200,
       headers: args[:headers] || [],

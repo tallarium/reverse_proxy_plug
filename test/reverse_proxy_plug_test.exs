@@ -246,6 +246,37 @@ defmodule ReverseProxyPlugTest do
     assert conn.resp_body == "not found"
   end
 
+  test "transforms request headers in a custom manner" do
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(:request, fn %{headers: headers} ->
+      send(self(), {:headers, headers})
+      TestReuse.make_response(%{status_code: 200})
+    end)
+
+    conn(:get, "/")
+    |> put_req_header("x-private-header", "header")
+    |> ReverseProxyPlug.call(
+      ReverseProxyPlug.init(
+        Keyword.merge(@opts,
+          response_mode: :buffer,
+          normalize_headers: fn headers ->
+            headers
+            |> Enum.reject(fn {name, _val} -> name == "x-private-header" end)
+          end
+        )
+      )
+    )
+
+    assert_receive {:headers, transformed_headers}
+
+    transformed_header_names =
+      transformed_headers
+      |> Enum.map(fn {name, _val} -> name end)
+
+    refute "x-private-header" in transformed_header_names,
+           "processed headers with custom function"
+  end
+
   test_stream_and_buffer "adds x-forwarded-for header if not present" do
     %{opts: opts, get_responder: get_responder} = test_reuse_opts
 
