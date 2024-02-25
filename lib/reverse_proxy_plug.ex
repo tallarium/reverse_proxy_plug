@@ -198,21 +198,7 @@ defmodule ReverseProxyPlug do
         end
 
       {:headers, headers}, conn ->
-        additional_headers =
-          if conn.status >= 200 and conn.status != 204,
-            do: [{"transfer-encoding", "chunked"}],
-            else: []
-
-        conn =
-          headers
-          |> opts[:normalize_headers].()
-          |> remove_hop_by_hop_headers
-          |> Enum.reject(fn {header, _} -> header == "content-length" end)
-          |> Enum.concat(additional_headers)
-          |> add_resp_headers(conn, opts[:stream_headers_mode])
-          |> Conn.send_chunked(conn.status)
-
-        {:cont, conn}
+        {:cont, conn |> send_stream_response_headers(headers, opts)}
 
       {:chunk, chunk}, conn ->
         case Conn.chunk(conn, chunk) do
@@ -300,6 +286,21 @@ defmodule ReverseProxyPlug do
     opts
     |> Keyword.put_new(:timeout, :infinity)
     |> Keyword.put_new(:recv_timeout, :infinity)
+  end
+
+  defp send_stream_response_headers(%{status: status} = conn, headers, opts) do
+    additional_headers =
+      if status >= 200 and status != 204,
+        do: [{"transfer-encoding", "chunked"}],
+        else: []
+
+    headers
+    |> opts[:normalize_headers].()
+    |> remove_hop_by_hop_headers
+    |> Enum.reject(fn {header, _} -> header == "content-length" end)
+    |> Enum.concat(additional_headers)
+    |> add_resp_headers(conn, opts[:stream_headers_mode])
+    |> Conn.send_chunked(status)
   end
 
   def downcase_headers(headers) do
