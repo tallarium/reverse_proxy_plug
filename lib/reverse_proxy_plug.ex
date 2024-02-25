@@ -189,12 +189,12 @@ defmodule ReverseProxyPlug do
     |> opts[:client].stream_response()
     |> Enum.reduce_while(initial_conn, fn
       {:status, status}, conn ->
-        case opts[:status_callbacks][status] do
-          nil ->
-            {:cont, conn |> Conn.put_status(status)}
-
-          handler ->
+        case Map.fetch(opts[:status_callbacks], status) do
+          {:ok, handler} ->
             {:halt, handler.(conn, opts)}
+
+          :error ->
+            {:cont, conn |> Conn.put_status(status)}
         end
 
       {:headers, headers}, conn ->
