@@ -125,10 +125,10 @@ defmodule ReverseProxyPlug do
 
   defp do_error_callback({m, f, a}, error, conn) do
     cond do
-      :erlang.function_exported(m, f, length(a) + 2) ->
+      function_exported?(m, f, length(a) + 2) ->
         apply(m, f, a ++ [error, conn])
 
-      :erlang.function_exported(m, f, length(a) + 1) ->
+      function_exported?(m, f, length(a) + 1) ->
         apply(m, f, a ++ [error])
         default_error_resp(error, conn)
 
