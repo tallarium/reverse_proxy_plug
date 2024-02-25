@@ -68,5 +68,27 @@ if Code.ensure_loaded?(HTTPoison) do
     defp translate_mod(HTTPoison.AsyncResponse), do: HTTPClient.AsyncResponse
     defp translate_mod(HTTPoison.MaybeRedirect), do: HTTPClient.MaybeRedirect
     defp translate_mod(HTTPoison.Error), do: HTTPClient.Error
+
+    @impl HTTPClient
+    def stream_response(_resp) do
+      Stream.unfold(nil, fn _ ->
+        receive do
+          %HTTPoison.AsyncStatus{code: code} ->
+            {{:status, code}, nil}
+
+          %HTTPoison.AsyncHeaders{headers: headers} ->
+            {{:headers, headers}, nil}
+
+          %HTTPoison.AsyncChunk{chunk: chunk} ->
+            {{:chunk, chunk}, nil}
+
+          %HTTPoison.Error{reason: reason} ->
+            {{:error, %HTTPClient.Error{reason: reason}}, nil}
+
+          %HTTPoison.AsyncEnd{} ->
+            nil
+        end
+      end)
+    end
   end
 end

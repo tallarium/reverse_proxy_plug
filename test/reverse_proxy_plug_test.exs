@@ -83,6 +83,20 @@ defmodule ReverseProxyPlugTest do
     assert conn.resp_body == Jason.encode!(body)
   end
 
+  test "throws an error if :stream mode is used with the Tesla adapter" do
+    proxy_opts =
+      Keyword.merge(@opts,
+        client: ReverseProxyPlug.HTTPClient.Adapters.Tesla,
+        client_options: [tesla_client: Tesla.client([], ReverseProxyPlug.TeslaMock)],
+        response_mode: :stream
+      )
+
+    assert_raise ArgumentError, fn ->
+      conn(:get, "/")
+      |> ReverseProxyPlug.call(ReverseProxyPlug.init(proxy_opts))
+    end
+  end
+
   test "does not add transfer-encoding header to response" do
     headers = [{"host", "example.com"}, {"content-length", "42"}]
 
@@ -126,6 +140,7 @@ defmodule ReverseProxyPlugTest do
   test "receives stream response" do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, TestReuse.get_stream_responder(%{headers: @host_header}))
+    |> stub(:stream_response, &HTTPClient.Adapters.HTTPoison.stream_response/1)
 
     conn =
       conn(:get, "/")
@@ -139,6 +154,7 @@ defmodule ReverseProxyPlugTest do
   test "sets correct chunked transfer-encoding headers" do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, TestReuse.get_stream_responder(%{headers: [{"content-length", "7"}]}))
+    |> stub(:stream_response, &HTTPClient.Adapters.HTTPoison.stream_response/1)
 
     conn =
       conn(:get, "/")
@@ -158,6 +174,7 @@ defmodule ReverseProxyPlugTest do
   test "does not sets transfer-encoding headers for informational status class" do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, TestReuse.get_stream_responder(%{status_code: 100}))
+    |> stub(:stream_response, &HTTPClient.Adapters.HTTPoison.stream_response/1)
 
     conn =
       conn(:get, "/")
@@ -174,6 +191,7 @@ defmodule ReverseProxyPlugTest do
   test "does not sets transfer-encoding headers for no content status code" do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, TestReuse.get_stream_responder(%{status_code: 204}))
+    |> stub(:stream_response, &HTTPClient.Adapters.HTTPoison.stream_response/1)
 
     conn =
       conn(:post, "/", nil)
@@ -230,6 +248,7 @@ defmodule ReverseProxyPlugTest do
   test "calls status callback" do
     ReverseProxyPlug.HTTPClientMock
     |> expect(:request, TestReuse.get_stream_responder(%{status_code: 500}))
+    |> stub(:stream_response, &HTTPClient.Adapters.HTTPoison.stream_response/1)
 
     opts =
       @opts
@@ -735,6 +754,7 @@ defmodule ReverseProxyPlugTest do
              ReverseProxyPlug.init(
                upstream: "",
                error_callback: {__MODULE__, :error_handler, []},
+               response_mode: :buffer,
                client: adapter
              )
 
@@ -750,6 +770,7 @@ defmodule ReverseProxyPlugTest do
              ReverseProxyPlug.init(
                upstream: "",
                error_callback: {__MODULE__, :error_handler, []},
+               response_mode: :buffer,
                client: nil
              )
 
