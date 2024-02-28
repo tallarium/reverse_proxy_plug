@@ -53,6 +53,8 @@ defmodule ReverseProxyPlug.MixProject do
 
   defp deps do
     [
+      {:bandit, "~> 1.0", optional: true},
+      {:cowboy, "~> 2.5", optional: true},
       {:excoveralls, "~> 0.18", only: :test},
       {:mix_test_watch, "~> 1.1", only: [:dev, :test], runtime: false},
       {:plug, "~> 1.6"},
