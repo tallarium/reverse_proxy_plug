@@ -400,19 +400,21 @@ defmodule ReverseProxyPlug do
   end
 
   defp ensure_http_client(opts) do
-    client = opts[:client] || Application.get_env(:reverse_proxy_plug, :http_client)
+    module =
+      opts[:client] || Application.get_env(:reverse_proxy_plug, :http_client) ||
+        HTTPClient.Adapters.HTTPoison
 
-    cond do
-      not is_nil(client) ->
-        Keyword.put(opts, :client, client)
+    client =
+      case Code.ensure_loaded(module) do
+        {:module, module} ->
+          module
 
-      Code.ensure_loaded?(HTTPClient.Adapters.HTTPoison) and is_nil(client) ->
-        Keyword.put(opts, :client, HTTPClient.Adapters.HTTPoison)
+        {:error, reason} ->
+          raise ArgumentError,
+                "could not load module #{inspect(module)} due to reason #{inspect(reason)}"
+      end
 
-      true ->
-        raise ArgumentError,
-              ":client option or :reverse_proxy_plug, :http_client global config must be set"
-    end
+    Keyword.put(opts, :client, client)
   end
 
   defp ensure_response_mode_compatibility(opts) do
