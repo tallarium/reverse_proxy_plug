@@ -36,6 +36,10 @@ defmodule ReverseProxyPlugTest do
 
   setup :verify_on_exit!
 
+  defmodule MyCustomAdapter do
+    # Used for adapter configuration testing
+  end
+
   test "receives buffer response" do
     headers = [{"host", "example.com"}, {"content-length", "42"}]
 
@@ -721,6 +725,22 @@ defmodule ReverseProxyPlugTest do
              )
 
     assert adapter == opts[:client]
+
+    # Raises if the module is invalid
+
+    Application.put_env(
+      :reverse_proxy_plug,
+      :http_client,
+      Nonsense
+    )
+
+    assert_raise ArgumentError, fn ->
+      ReverseProxyPlug.init(
+        upstream: "",
+        error_callback: {__MODULE__, :error_handler, []},
+        response_mode: :buffer
+      )
+    end
   end
 
   test_stream_and_buffer "recycles cookies from connection" do
