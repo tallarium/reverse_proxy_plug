@@ -138,7 +138,7 @@ defmodule ReverseProxyPlug do
   end
 
   defp do_error_callback(fun, error, conn) when is_function(fun) do
-    case :erlang.fun_info(fun, :arity) do
+    case Function.info(fun, :arity) do
       {:arity, 2} ->
         fun.(error, conn)
 
@@ -404,17 +404,7 @@ defmodule ReverseProxyPlug do
       opts[:client] || Application.get_env(:reverse_proxy_plug, :http_client) ||
         HTTPClient.Adapters.HTTPoison
 
-    client =
-      case Code.ensure_loaded(module) do
-        {:module, module} ->
-          module
-
-        {:error, reason} ->
-          raise ArgumentError,
-                "could not load module #{inspect(module)} due to reason #{inspect(reason)}"
-      end
-
-    Keyword.put(opts, :client, client)
+    Keyword.put(opts, :client, Code.ensure_loaded!(module))
   end
 
   defp ensure_response_mode_compatibility(opts) do
