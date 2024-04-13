@@ -138,7 +138,7 @@ defmodule ReverseProxyPlug do
   end
 
   defp do_error_callback(fun, error, conn) when is_function(fun) do
-    case :erlang.fun_info(fun, :arity) do
+    case Function.info(fun, :arity) do
       {:arity, 2} ->
         fun.(error, conn)
 
