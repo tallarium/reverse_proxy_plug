@@ -333,12 +333,12 @@ defmodule ReverseProxyPlugTest do
   end
 
   defmodule ErrorHandling do
-    def mfa_error_callback(arg, {:error, error}) do
+    def mfa_error_callback(arg, error) do
       send(self(), {:got_arg, arg})
       send(self(), {:got_error, error})
     end
 
-    def mfa_error_callback(arg, {:error, error}, conn) do
+    def mfa_error_callback(arg, error, conn) do
       send(self(), {:got_arg, arg})
       send(self(), {:got_error, error})
       send(self(), {:got_conn, conn})
@@ -347,11 +347,11 @@ defmodule ReverseProxyPlugTest do
 
     def mfa_error_callback1(arg, error), do: mfa_error_callback(arg, error)
 
-    def fun_error_callback({:error, error}) do
+    def fun_error_callback(error) do
       send(self(), {:got_error, error})
     end
 
-    def fun_error_callback({:error, error}, conn) do
+    def fun_error_callback(error, conn) do
       send(self(), {:got_error, error})
       send(self(), {:got_conn, conn})
       resp(conn, :internal_server_error, "internal server error")

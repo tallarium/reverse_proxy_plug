@@ -119,7 +119,7 @@ defmodule ReverseProxyPlug do
     process_response(opts[:response_mode], conn, resp, opts)
   end
 
-  def response(error, conn, opts) do
+  def response({:error, error}, conn, opts) do
     do_error_callback(opts[:error_callback], error, conn)
   end
 
@@ -156,7 +156,7 @@ defmodule ReverseProxyPlug do
     |> Conn.send_resp()
   end
 
-  defp status_from_error({:error, %HTTPClient.Error{id: nil, reason: reason}})
+  defp status_from_error(%HTTPClient.Error{id: nil, reason: reason})
        when reason in @timeout_error_reasons do
     :gateway_timeout
   end
