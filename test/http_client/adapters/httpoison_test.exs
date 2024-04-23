@@ -4,7 +4,6 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.HTTPoisonTest do
   alias ReverseProxyPlug.HTTPClient.Adapters.HTTPoison, as: HTTPoisonClient
 
   alias ReverseProxyPlug.HTTPClient.{
-    AsyncResponse,
     Error,
     Request,
     Response
@@ -50,11 +49,11 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.HTTPoisonTest do
           Plug.Conn.send_resp(conn, 204, "")
         end)
 
-        assert {:ok, %AsyncResponse{id: id}} = HTTPoisonClient.request(req)
+        assert {:ok, %Response{}} = HTTPoisonClient.request(req)
 
-        assert_receive %HTTPoison.AsyncStatus{id: ^id, code: 204}, 1_000
-        assert_receive %HTTPoison.AsyncHeaders{id: ^id, headers: headers}, 1_000
-        assert_receive %HTTPoison.AsyncEnd{id: ^id}, 1_000
+        assert_receive %HTTPoison.AsyncStatus{code: 204}, 1_000
+        assert_receive %HTTPoison.AsyncHeaders{headers: headers}, 1_000
+        assert_receive %HTTPoison.AsyncEnd{}, 1_000
         assert is_list(headers)
       end
 
@@ -94,9 +93,9 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.HTTPoisonTest do
         Plug.Conn.send_resp(conn, 204, "")
       end)
 
-      assert {:ok, %AsyncResponse{id: id}} = HTTPoisonClient.request(req)
+      assert {:ok, %Response{}} = HTTPoisonClient.request(req)
 
-      assert_receive %HTTPoison.Error{id: ^id, reason: {:closed, :timeout}}, 1_000
+      assert_receive %HTTPoison.Error{reason: {:closed, :timeout}}, 1_000
     end
   end
 end
