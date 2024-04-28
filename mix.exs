@@ -53,6 +53,7 @@ defmodule ReverseProxyPlug.MixProject do
 
   defp deps do
     [
+      {:req, "~> 0.3 or ~> 0.4", optional: true},
       {:finch, "~> 0.18", optional: true},
       {:excoveralls, "~> 0.18", only: :test},
       {:mix_test_watch, "~> 1.1", only: [:dev, :test], runtime: false},
