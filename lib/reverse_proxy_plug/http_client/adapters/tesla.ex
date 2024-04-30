@@ -15,6 +15,9 @@ if Code.ensure_loaded?(Tesla) do
 
     @behaviour HTTPClient
 
+    @minimum_tesla_version_for_stream Version.parse!("1.9.0")
+    @tesla_version Application.spec(:tesla, :vsn) |> to_string() |> Version.parse!()
+
     @impl HTTPClient
     def request(%HTTPClient.Request{options: options} = request) do
       {client, opts} = Keyword.pop(options, :tesla_client)
@@ -48,6 +51,26 @@ if Code.ensure_loaded?(Tesla) do
 
         {:error, error} ->
           {:error, %HTTPClient.Error{reason: error}}
+      end
+    end
+
+    if Version.compare(@tesla_version, @minimum_tesla_version_for_stream) in [:gt, :eq] do
+      @impl HTTPClient
+      def request_stream(%HTTPClient.Request{options: options} = req) do
+        case request(%{req | options: Keyword.merge(options, adapter: [response: :stream])}) do
+          {:ok, %HTTPClient.Response{status_code: status_code, headers: headers, body: body}} ->
+            {:ok,
+             Stream.concat(
+               [
+                 {:status, status_code},
+                 {:headers, headers}
+               ],
+               Stream.map(body, &{:chunk, &1})
+             )}
+
+          {:error, _} = error ->
+            error
+        end
       end
     end
   end

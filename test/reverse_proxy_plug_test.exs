@@ -87,20 +87,6 @@ defmodule ReverseProxyPlugTest do
     assert conn.resp_body == Jason.encode!(body)
   end
 
-  test "throws an error if :stream mode is used with the Tesla adapter" do
-    proxy_opts =
-      Keyword.merge(@opts,
-        client: ReverseProxyPlug.HTTPClient.Adapters.Tesla,
-        client_options: [tesla_client: Tesla.client([], ReverseProxyPlug.TeslaMock)],
-        response_mode: :stream
-      )
-
-    assert_raise ArgumentError, fn ->
-      conn(:get, "/")
-      |> ReverseProxyPlug.call(ReverseProxyPlug.init(proxy_opts))
-    end
-  end
-
   test "does not add transfer-encoding header to response" do
     headers = [{"host", "example.com"}, {"content-length", "42"}]
 
