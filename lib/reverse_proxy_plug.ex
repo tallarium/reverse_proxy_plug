@@ -104,15 +104,7 @@ defmodule ReverseProxyPlug do
   end
 
   def request(conn, body, opts) do
-    {method, url, headers, client_options} = prepare_request(conn, opts)
-
-    request = %HTTPClient.Request{
-      method: method,
-      url: url,
-      body: body,
-      headers: headers,
-      options: client_options
-    }
+    request = prepare_request(conn, opts, body)
 
     if opts[:response_mode] == :stream do
       opts[:client].request_stream(request)
@@ -242,7 +234,7 @@ defmodule ReverseProxyPlug do
     end
   end
 
-  defp prepare_request(conn, options) do
+  defp prepare_request(conn, options, body) do
     method =
       try do
         conn.method
@@ -278,7 +270,13 @@ defmodule ReverseProxyPlug do
       |> Keyword.put_new(:recv_timeout, :infinity)
       |> recycle_cookies(conn)
 
-    {method, url, headers, client_options}
+    %HTTPClient.Request{
+      method: method,
+      url: url,
+      body: body,
+      headers: headers,
+      options: client_options
+    }
   end
 
   defp send_stream_response_headers(%{status: status} = conn, headers, opts) do
