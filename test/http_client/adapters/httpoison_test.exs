@@ -39,8 +39,7 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.HTTPoisonTest do
 
         req = %Request{
           method: unquote(method),
-          url: "http://localhost:8000#{path}",
-          options: [stream_to: self()]
+          url: "http://localhost:8000#{path}"
         }
 
         Bypass.expect_once(bypass, fn %Plug.Conn{} = conn ->
@@ -49,11 +48,13 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.HTTPoisonTest do
           Plug.Conn.send_resp(conn, 204, "")
         end)
 
-        assert {:ok, %Response{}} = HTTPoisonClient.request(req)
+        assert {:ok, stream} = HTTPoisonClient.request_stream(req)
 
-        assert_receive %HTTPoison.AsyncStatus{code: 204}, 1_000
-        assert_receive %HTTPoison.AsyncHeaders{headers: headers}, 1_000
-        assert_receive %HTTPoison.AsyncEnd{}, 1_000
+        assert [
+                 {:status, 204},
+                 {:headers, headers}
+               ] = Enum.to_list(stream)
+
         assert is_list(headers)
       end
 
