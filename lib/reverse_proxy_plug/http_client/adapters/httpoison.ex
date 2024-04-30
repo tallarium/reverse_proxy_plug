@@ -64,31 +64,38 @@ if Code.ensure_loaded?(HTTPoison) do
       {tag, translated_resp}
     end
 
+    defp translate_mod(HTTPoison.AsyncResponse), do: HTTPClient.Response
     defp translate_mod(HTTPoison.Response), do: HTTPClient.Response
-    defp translate_mod(HTTPoison.AsyncResponse), do: HTTPClient.AsyncResponse
     defp translate_mod(HTTPoison.MaybeRedirect), do: HTTPClient.MaybeRedirect
     defp translate_mod(HTTPoison.Error), do: HTTPClient.Error
 
     @impl HTTPClient
-    def stream_response(_resp) do
-      Stream.unfold(nil, fn _ ->
-        receive do
-          %HTTPoison.AsyncStatus{code: code} ->
-            {{:status, code}, nil}
+    def request_stream(%HTTPClient.Request{options: options} = req) do
+      case request(%{req | options: Keyword.put(options, :stream_to, self())}) do
+        {:ok, _} ->
+          {:ok,
+           Stream.unfold(nil, fn _ ->
+             receive do
+               %HTTPoison.AsyncStatus{code: code} ->
+                 {{:status, code}, nil}
 
-          %HTTPoison.AsyncHeaders{headers: headers} ->
-            {{:headers, headers}, nil}
+               %HTTPoison.AsyncHeaders{headers: headers} ->
+                 {{:headers, headers}, nil}
 
-          %HTTPoison.AsyncChunk{chunk: chunk} ->
-            {{:chunk, chunk}, nil}
+               %HTTPoison.AsyncChunk{chunk: chunk} ->
+                 {{:chunk, chunk}, nil}
 
-          %HTTPoison.Error{reason: reason} ->
-            {{:error, %HTTPClient.Error{reason: reason}}, nil}
+               %HTTPoison.Error{reason: reason} ->
+                 {{:error, %HTTPClient.Error{reason: reason}}, nil}
 
-          %HTTPoison.AsyncEnd{} ->
-            nil
-        end
-      end)
+               %HTTPoison.AsyncEnd{} ->
+                 nil
+             end
+           end)}
+
+        {:error, _} = error ->
+          error
+      end
     end
   end
 end

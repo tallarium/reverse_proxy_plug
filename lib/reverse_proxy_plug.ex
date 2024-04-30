@@ -104,15 +104,13 @@ defmodule ReverseProxyPlug do
   end
 
   def request(conn, body, opts) do
-    {method, url, headers, client_options} = prepare_request(conn, opts)
+    request = prepare_request(conn, opts, body)
 
-    opts[:client].request(%HTTPClient.Request{
-      method: method,
-      url: url,
-      body: body,
-      headers: headers,
-      options: client_options
-    })
+    if opts[:response_mode] == :stream do
+      opts[:client].request_stream(request)
+    else
+      opts[:client].request(request)
+    end
   end
 
   def response({:ok, resp}, conn, opts) do
@@ -184,9 +182,8 @@ defmodule ReverseProxyPlug do
     |> Conn.resp(status, body)
   end
 
-  defp process_response(:stream, initial_conn, %HTTPClient.AsyncResponse{} = resp, opts) do
+  defp process_response(:stream, initial_conn, resp, opts) do
     resp
-    |> opts[:client].stream_response()
     |> Enum.reduce_while(initial_conn, fn
       {:status, status}, conn ->
         case Map.fetch(opts[:status_callbacks], status) do
@@ -237,7 +234,7 @@ defmodule ReverseProxyPlug do
     end
   end
 
-  defp prepare_request(conn, options) do
+  defp prepare_request(conn, options, body) do
     method =
       try do
         conn.method
@@ -268,24 +265,18 @@ defmodule ReverseProxyPlug do
     headers = List.keystore(headers, "host", 0, {"host", proxy_req_host})
 
     client_options =
-      options[:response_mode]
-      |> get_client_opts(options[:client_options])
+      options[:client_options]
+      |> Keyword.put_new(:timeout, :infinity)
+      |> Keyword.put_new(:recv_timeout, :infinity)
       |> recycle_cookies(conn)
 
-    {method, url, headers, client_options}
-  end
-
-  defp get_client_opts(:stream, opts) do
-    opts
-    |> Keyword.put_new(:timeout, :infinity)
-    |> Keyword.put_new(:recv_timeout, :infinity)
-    |> Keyword.put_new(:stream_to, self())
-  end
-
-  defp get_client_opts(:buffer, opts) do
-    opts
-    |> Keyword.put_new(:timeout, :infinity)
-    |> Keyword.put_new(:recv_timeout, :infinity)
+    %HTTPClient.Request{
+      method: method,
+      url: url,
+      body: body,
+      headers: headers,
+      options: client_options
+    }
   end
 
   defp send_stream_response_headers(%{status: status} = conn, headers, opts) do
@@ -409,7 +400,7 @@ defmodule ReverseProxyPlug do
 
   defp ensure_response_mode_compatibility(opts) do
     if opts[:response_mode] == :stream and
-         not function_exported?(opts[:client], :stream_response, 1) do
+         not function_exported?(opts[:client], :request_stream, 1) do
       raise ArgumentError,
             "The client adapter does not support streaming responses. Please use :buffer response mode."
     else

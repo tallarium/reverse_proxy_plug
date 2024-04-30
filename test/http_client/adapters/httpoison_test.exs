@@ -4,7 +4,6 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.HTTPoisonTest do
   alias ReverseProxyPlug.HTTPClient.Adapters.HTTPoison, as: HTTPoisonClient
 
   alias ReverseProxyPlug.HTTPClient.{
-    AsyncResponse,
     Error,
     Request,
     Response
@@ -40,8 +39,7 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.HTTPoisonTest do
 
         req = %Request{
           method: unquote(method),
-          url: "http://localhost:8000#{path}",
-          options: [stream_to: self()]
+          url: "http://localhost:8000#{path}"
         }
 
         Bypass.expect_once(bypass, fn %Plug.Conn{} = conn ->
@@ -50,11 +48,13 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.HTTPoisonTest do
           Plug.Conn.send_resp(conn, 204, "")
         end)
 
-        assert {:ok, %AsyncResponse{id: id}} = HTTPoisonClient.request(req)
+        assert {:ok, stream} = HTTPoisonClient.request_stream(req)
 
-        assert_receive %HTTPoison.AsyncStatus{id: ^id, code: 204}, 1_000
-        assert_receive %HTTPoison.AsyncHeaders{id: ^id, headers: headers}, 1_000
-        assert_receive %HTTPoison.AsyncEnd{id: ^id}, 1_000
+        assert [
+                 {:status, 204},
+                 {:headers, headers}
+               ] = Enum.to_list(stream)
+
         assert is_list(headers)
       end
 
@@ -94,9 +94,9 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.HTTPoisonTest do
         Plug.Conn.send_resp(conn, 204, "")
       end)
 
-      assert {:ok, %AsyncResponse{id: id}} = HTTPoisonClient.request(req)
+      assert {:ok, %Response{}} = HTTPoisonClient.request(req)
 
-      assert_receive %HTTPoison.Error{id: ^id, reason: {:closed, :timeout}}, 1_000
+      assert_receive %HTTPoison.Error{reason: {:closed, :timeout}}, 1_000
     end
   end
 end
