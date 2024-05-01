@@ -13,7 +13,7 @@ if Code.ensure_loaded?(HTTPoison) do
       request
       |> translate_request()
       |> HTTPoison.request()
-      |> translate_response()
+      |> translate_response(request)
     end
 
     defp translate_request(%HTTPClient.Request{} = request) do
@@ -27,23 +27,12 @@ if Code.ensure_loaded?(HTTPoison) do
       }
     end
 
-    defp translate_request(%HTTPoison.Request{} = request) do
-      %HTTPClient.Request{
-        method: request.method,
-        url: request.url,
-        headers: request.headers,
-        query_params: request.params,
-        body: request.body,
-        options: request.options
-      }
-    end
-
-    defp translate_response({tag, %mod{request: request} = response})
+    defp translate_response({tag, %mod{} = response}, request)
          when tag in [:ok, :error] and mod in [HTTPoison.Response, HTTPoison.MaybeRedirect] do
       data =
         response
         |> Map.from_struct()
-        |> Map.put(:request, translate_request(request))
+        |> Map.put(:request, request)
 
       translated_resp =
         mod
@@ -53,7 +42,7 @@ if Code.ensure_loaded?(HTTPoison) do
       {tag, translated_resp}
     end
 
-    defp translate_response({tag, %mod{} = response}) when tag in [:ok, :error] do
+    defp translate_response({tag, %mod{} = response}, _request) when tag in [:ok, :error] do
       data = Map.from_struct(response)
 
       translated_resp =
