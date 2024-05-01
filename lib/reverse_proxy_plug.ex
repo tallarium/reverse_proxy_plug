@@ -264,11 +264,7 @@ defmodule ReverseProxyPlug do
 
     headers = List.keystore(headers, "host", 0, {"host", proxy_req_host})
 
-    client_options =
-      options[:client_options]
-      |> Keyword.put_new(:timeout, :infinity)
-      |> Keyword.put_new(:recv_timeout, :infinity)
-      |> recycle_cookies(conn)
+    client_options = recycle_cookies(options[:client_options], conn)
 
     %HTTPClient.Request{
       method: method,
