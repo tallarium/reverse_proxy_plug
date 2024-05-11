@@ -130,7 +130,7 @@ headers.
 - `:stream` (default) - The response from the plug will always be chunk
 encoded. If the upstream server sends a chunked response, ReverseProxyPlug
 will pass chunks to the clients as soon as they arrive, resulting in zero
-delay.
+delay. Not all adapters support the `:stream` response mode currently.
 
 - `:buffer` - The plug will wait until the whole response is received from
 the upstream server, at which point it will send it to the client using
