@@ -2,7 +2,7 @@ defmodule ReverseProxyPlug.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/tallarium/reverse_proxy_plug"
-  @version "2.4.1"
+  @version "3.0.0"
 
   def project do
     [
