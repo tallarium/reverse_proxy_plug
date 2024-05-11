@@ -8,7 +8,7 @@ defmodule ReverseProxyPlug.MixProject do
     [
       app: :reverse_proxy_plug,
       version: @version,
-      elixir: "~> 1.12",
+      elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
       aliases: aliases(),
