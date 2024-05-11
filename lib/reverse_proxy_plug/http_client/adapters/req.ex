@@ -12,6 +12,9 @@ if Code.ensure_loaded?(Req) do
 
     @behaviour HTTPClient
 
+    @minimum_req_version_for_merge Version.parse!("0.4.0")
+    @req_version Application.spec(:req, :vsn) |> to_string() |> Version.parse!()
+
     @impl HTTPClient
     def request(
           %HTTPClient.Request{
@@ -23,7 +26,7 @@ if Code.ensure_loaded?(Req) do
           } = request
         ) do
       case Req.new(method: method, url: url, headers: headers, body: body, retry: false)
-           |> Req.update(options)
+           |> merge_options(options)
            |> Req.request() do
         {:ok, resp} ->
           {:ok,
@@ -38,6 +41,12 @@ if Code.ensure_loaded?(Req) do
         {:error, %{reason: reason}} ->
           {:error, %HTTPClient.Error{reason: reason}}
       end
+    end
+
+    if Version.compare(@req_version, @minimum_req_version_for_merge) do
+      defp merge_options(request, options), do: Req.merge(request, options)
+    else
+      defp merge_options(request, options), do: Req.update(request, options)
     end
   end
 end
