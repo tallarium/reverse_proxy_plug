@@ -29,23 +29,26 @@ def deps do
 end
 ```
 
-Then add an HTTP client library, either
-[httpoison](https://hex.pm/packages/httpoison) or
-[tesla](https://hex.pm/packages/tesla), and configure depending on your choice:
+Then add an HTTP client library, one of:
+- [HTTPoison](https://hex.pm/packages/httpoison)
+- [Tesla](https://hex.pm/packages/tesla)
+- [Finch](https://hex.pm/packages/finch)
+- [Req](https://hex.pm/packages/req)
+
+and configure depending on your choice, e.g.:
 
 ```elixir
 config :reverse_proxy_plug, :http_client, ReverseProxyPlug.HTTPClient.Adapters.HTTPoison
-# OR
-config :reverse_proxy_plug, :http_client, ReverseProxyPlug.HTTPClient.Adapters.Tesla
 ```
 
 You can also set the config as a per-plug basis, which will override any global config.
-Either of those must be set, otherwise the system will attempt to default to the HTTPoison
-adapter or raise if it's not present.
 
 ```elixir
 plug ReverseProxyPlug, client: ReverseProxyPlug.HTTPClient.Adapters.Tesla
 ```
+
+Either of those must be set, otherwise the system will attempt to default to the HTTPoison
+adapter or raise if it's not present.
 
 ## Usage
 
