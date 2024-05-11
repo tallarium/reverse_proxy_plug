@@ -142,6 +142,17 @@ You can choose the response mode by passing a `:response_mode` option:
 forward("/foo", to: ReverseProxyPlug, response_mode: :buffer, upstream: "//example.com/bar")
 ```
 
+### Response header processing mode
+
+You can specify the behaviour of how headers from the upstream response are incorporated
+into the response that is sent from `reverse_proxy_plug`:
+- `:replace` - use `Conn.put_resp_header` to overwrite any existing headers present
+- `:prepend` - use `Conn.prepend_resp_header` to prepend headers from the upstream to existing
+response headers in `conn`.
+
+The defaults differ per response mode - `:stream_headers_mode` defaults to `:replace`, `:buffer_headers_mode`
+to `:prepend`.
+
 ### Client options
 
 You can pass options to the configured HTTP client. Valid options depend on the HTTP client used.
