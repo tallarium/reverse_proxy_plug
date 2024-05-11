@@ -6,16 +6,17 @@
 [![License](https://img.shields.io/hexpm/l/reverse_proxy_plug.svg)](https://github.com/tallarium/reverse_proxy_plug/blob/master/LICENSE.md)
 [![Last Updated](https://img.shields.io/github/last-commit/tallarium/reverse_proxy_plug.svg)](https://github.com/tallarium/reverse_proxy_plug/commits/master)
 
-A reverse proxy plug for proxying a request to another URL using [HTTPoison](https://github.com/edgurgel/httpoison).
-Perfect when you need to transparently proxy requests to another service but
-also need to have full programmatic control over the outgoing requests.
+A reverse proxy plug for proxying a request to another URL using a choice of
+Elixir HTTP client libraries. Perfect when you need to transparently proxy
+requests to another service but also need to have full programmatic control
+over the outgoing requests.
 
 This project grew out of a fork of
 [elixir-reverse-proxy](https://github.com/slogsdon/elixir-reverse-proxy).
 Advantages over the original include more flexible upstreams, zero-delay
-chunked transfer encoding support, HTTP2 support with Cowboy 2 and focus on
-being a composable Plug instead of providing a standalone reverse proxy
-application.
+chunked transfer encoding support, HTTP2 support with Cowboy 2, several options
+for HTTP client libraries and focus on being a composable Plug instead of
+providing a standalone reverse proxy application.
 
 ## Installation
 
