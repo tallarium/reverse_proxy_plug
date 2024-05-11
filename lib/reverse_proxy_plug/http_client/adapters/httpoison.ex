@@ -23,8 +23,16 @@ if Code.ensure_loaded?(HTTPoison) do
         headers: request.headers,
         params: request.query_params,
         body: request.body,
-        options: request.options
+        options: recycle_cookies(request.options, request.cookies)
       }
+    end
+
+    defp recycle_cookies(options, "") do
+      options
+    end
+
+    defp recycle_cookies(options, cookies) when is_bitstring(cookies) do
+      Keyword.put(options, :hackney, cookie: cookies)
     end
 
     defp translate_response({tag, %mod{} = response}, request)

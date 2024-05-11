@@ -264,14 +264,13 @@ defmodule ReverseProxyPlug do
 
     headers = List.keystore(headers, "host", 0, {"host", proxy_req_host})
 
-    client_options = recycle_cookies(options[:client_options], conn)
-
     %HTTPClient.Request{
       method: method,
       url: url,
       body: body,
       headers: headers,
-      options: client_options
+      options: options[:client_options],
+      cookies: get_cookies(conn)
     }
   end
 
@@ -321,16 +320,6 @@ defmodule ReverseProxyPlug do
       end
 
     headers ++ [{"x-forwarded-for", x_forwarded_for}]
-  end
-
-  defp recycle_cookies(client_opts, conn) do
-    case get_cookies(conn) do
-      "" ->
-        client_opts
-
-      cookies when is_bitstring(cookies) ->
-        Keyword.put(client_opts, :hackney, cookie: cookies)
-    end
   end
 
   defp get_cookies(%Conn{cookies: %Conn.Unfetched{aspect: :cookies}} = conn) do

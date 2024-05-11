@@ -8,11 +8,18 @@ defmodule ReverseProxyPlug.HTTPClient.Request do
     * `:headers` - HTTP headers as an orddict (e.g., `[{"Accept", "application/json"}]`)
     * `:options` - Keyword list of options. Valid options vary with the HTTP client used.
     * `:query_params` - Query parameters as a map, keyword, or orddict
+    * `:cookies` - the original request's cookie string, in case an adapter needs to pass this in another form
 
   The exact typing for each of the parameters depends on the adapter used.
   """
   @enforce_keys [:url]
-  defstruct method: :get, url: nil, headers: [], body: "", query_params: %{}, options: []
+  defstruct method: :get,
+            url: nil,
+            headers: [],
+            body: "",
+            query_params: %{},
+            options: [],
+            cookies: ""
 
   @type method :: :get | :post | :put | :patch | :delete | :options | :head
   @type headers :: [{atom, binary}] | [{binary, binary}] | %{binary => binary} | any
@@ -20,6 +27,7 @@ defmodule ReverseProxyPlug.HTTPClient.Request do
   @type body :: any()
   @type query_params :: any()
   @type options :: any()
+  @type cookies :: bitstring
 
   @type t :: %__MODULE__{
           method: method,
@@ -27,6 +35,7 @@ defmodule ReverseProxyPlug.HTTPClient.Request do
           headers: headers,
           body: body,
           query_params: query_params,
-          options: options
+          options: options,
+          cookies: cookies
         }
 end
