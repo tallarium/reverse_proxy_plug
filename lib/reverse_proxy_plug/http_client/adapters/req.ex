@@ -3,7 +3,10 @@ if Code.ensure_loaded?(Req) do
     @moduledoc """
     Req adapter for the `ReverseProxyPlug.HTTPClient` behaviour
 
-    Only synchronous responses are supported.
+    Buffer resposne mode is supported for all Req versions.
+
+    Stream response mode is supported for Req 0.4.0 and up, when using
+    the Finch adapter.
 
     See the [Req documentation](https://hexdocs.pm/req/Req.html#new/1) for client-specific options.
     """

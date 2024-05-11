@@ -3,7 +3,10 @@ if Code.ensure_loaded?(Tesla) do
     @moduledoc """
     Tesla adapter for the `ReverseProxyPlug.HTTPClient` behaviour
 
-    Only synchronous responses are supported.
+    Buffer response mode is supported for all Tesla versions.
+
+    Stream response mode is supported for Tesla 1.9.0 and up when using
+    the Finch adapter.
 
     ## Options
 
