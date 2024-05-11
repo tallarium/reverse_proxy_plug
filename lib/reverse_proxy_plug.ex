@@ -399,7 +399,11 @@ defmodule ReverseProxyPlug do
 
   defp add_resp_headers(resp_headers, conn, :replace) do
     Enum.reduce(resp_headers, conn, fn {header, value}, conn ->
-      Conn.put_resp_header(conn, header, value)
+      Conn.put_resp_header(
+        conn,
+        header,
+        if(is_list(value), do: Enum.join(value, ", "), else: value)
+      )
     end)
   end
 end
