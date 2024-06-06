@@ -209,7 +209,7 @@ defmodule ReverseProxyPlug do
   end
 
   defp prepare_url(conn, overrides) do
-    keys = [:scheme, :host, :port, :query_string]
+    keys = [:scheme, :host, :port, :query_string, :path_params]
 
     x =
       conn
@@ -220,6 +220,7 @@ defmodule ReverseProxyPlug do
 
     request_path = Enum.join(conn.path_info, "/")
     request_path = Path.join(overrides[:request_path] || "/", request_path)
+    request_path = replace_path_variables(request_path, x[:path_params])
 
     request_path =
       if String.ends_with?(conn.request_path, "/") && !String.ends_with?(request_path, "/"),
@@ -404,6 +405,12 @@ defmodule ReverseProxyPlug do
         header,
         if(is_list(value), do: Enum.join(value, ", "), else: value)
       )
+    end)
+  end
+
+  defp replace_path_variables(path, path_params) do
+    Regex.replace(~r/:([a-zA-Z_]+)/, path, fn match, var_name ->
+      Map.get(path_params, var_name, match)
     end)
   end
 end
