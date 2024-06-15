@@ -29,7 +29,14 @@ if Code.ensure_loaded?(Req) do
             options: options
           } = request
         ) do
-      case Req.new(method: method, url: url, headers: headers, body: body, retry: false)
+      case Req.new(
+             method: method,
+             url: url,
+             headers: headers,
+             body: body,
+             retry: false,
+             raw: true
+           )
            |> merge_options(options)
            |> Req.request() do
         {:ok, resp} ->
