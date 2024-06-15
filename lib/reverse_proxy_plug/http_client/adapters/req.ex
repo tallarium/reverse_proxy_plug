@@ -54,7 +54,7 @@ if Code.ensure_loaded?(Req) do
       end
     end
 
-    if Version.compare(@req_version, @minimum_req_version_for_merge) do
+    if Version.compare(@req_version, @minimum_req_version_for_merge) in [:gt, :eq] do
       defp merge_options(request, options), do: Req.merge(request, options)
     else
       defp merge_options(request, options), do: Req.update(request, options)
