@@ -44,7 +44,7 @@ if Code.ensure_loaded?(Req) do
            %HTTPClient.Response{
              status_code: resp.status,
              body: resp.body,
-             headers: resp.headers,
+             headers: normalize_headers(resp.headers),
              request_url: url,
              request: request
            }}
@@ -83,7 +83,7 @@ if Code.ensure_loaded?(Req) do
              Stream.concat(
                [
                  {:status, status_code},
-                 {:headers, resp_headers}
+                 {:headers, normalize_headers(resp_headers)}
                ],
                body_stream()
              )}
@@ -115,6 +115,10 @@ if Code.ensure_loaded?(Req) do
           fn _ -> nil end
         )
       end
+    end
+
+    defp normalize_headers(headers) do
+      Enum.map(headers, fn {k, v} -> {k, v |> List.wrap() |> Enum.join(", ")} end)
     end
   end
 end

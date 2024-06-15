@@ -59,7 +59,7 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.ReqTest do
                  {:headers, headers}
                ] = Enum.to_list(stream)
 
-        assert is_map(headers)
+        assert is_list(headers)
       end
 
       test "should return error for requests with method #{method}" do

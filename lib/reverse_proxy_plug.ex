@@ -402,7 +402,7 @@ defmodule ReverseProxyPlug do
       Conn.put_resp_header(
         conn,
         header,
-        if(is_list(value), do: Enum.join(value, ", "), else: value)
+        value
       )
     end)
   end
