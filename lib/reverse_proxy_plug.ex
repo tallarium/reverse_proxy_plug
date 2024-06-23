@@ -135,15 +135,13 @@ defmodule ReverseProxyPlug do
     end
   end
 
-  defp do_error_callback(fun, error, conn) when is_function(fun) do
-    case Function.info(fun, :arity) do
-      {:arity, 2} ->
-        fun.(error, conn)
+  defp do_error_callback(fun, error, conn) when is_function(fun, 2) do
+    fun.(error, conn)
+  end
 
-      {:arity, 1} ->
-        fun.(error)
-        default_error_resp(error, conn)
-    end
+  defp do_error_callback(fun, error, conn) when is_function(fun, 1) do
+    fun.(error)
+    default_error_resp(error, conn)
   end
 
   defp do_error_callback(nil, error, conn), do: default_error_resp(error, conn)
