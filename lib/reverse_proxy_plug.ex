@@ -306,7 +306,7 @@ defmodule ReverseProxyPlug do
   defp add_x_fwd_for_header(headers, conn) do
     {x_fwd_for, headers} = Enum.split_with(headers, fn {k, _v} -> k == "x-forwarded-for" end)
 
-    remote_ip = conn.remote_ip |> Tuple.to_list() |> Enum.join(".")
+    remote_ip = conn.remote_ip |> :inet.ntoa() |> to_string()
 
     x_forwarded_for =
       case x_fwd_for do
