@@ -266,6 +266,24 @@ defmodule ReverseProxyPlugTest do
     assert_header(headers, "x-forwarded-for", ["127.0.0.2, 127.0.0.1"])
   end
 
+  test_stream_and_buffer "supports IPv6 addresses for x-forwarded-for header" do
+    %{req_function: req_function, opts: opts, get_responder: get_responder} = test_reuse_opts
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(req_function, fn %{headers: headers} = request ->
+      send(self(), {:headers, headers})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/")
+    # ::1
+    |> Map.put(:remote_ip, {0, 0, 0, 0, 0, 0, 0, 1})
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts))
+
+    assert_receive {:headers, headers}
+    assert_header(headers, "x-forwarded-for", ["::1"])
+  end
+
   test_stream_and_buffer "removes hop-by-hop headers before forwarding request" do
     %{req_function: req_function, opts: opts, get_responder: get_responder} = test_reuse_opts
 
