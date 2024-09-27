@@ -94,13 +94,20 @@ if Code.ensure_loaded?(Req) do
       end
 
       defp async_request(req, parent) do
+        connect_timeout =
+          req.options
+          |> Keyword.get(:connect_options, [])
+          |> Keyword.get(:timeout, 30_000)
+
+        recv_timeout = Keyword.get(req.options, :recv_timeout, 15_000)
+
         fn ->
           ret = request(req)
           send(parent, :eof)
           ret
         end
         |> Task.async()
-        |> Task.await()
+        |> Task.await(connect_timeout + recv_timeout)
       end
 
       defp body_stream do
