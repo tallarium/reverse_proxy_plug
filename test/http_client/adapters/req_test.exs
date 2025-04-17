@@ -73,6 +73,44 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.ReqTest do
 
         assert {:error, %Error{reason: :econnrefused}} == ReqClient.request(req)
       end
+
+      test "should not merge set-cookie headers with method #{method}", %{bypass: bypass} do
+        path = "/my-resource"
+
+        req = %Request{
+          method: unquote(method),
+          options: [finch: FinchTest],
+          url: "http://localhost:8000#{path}"
+        }
+
+        Bypass.expect_once(bypass, fn %Plug.Conn{} = conn ->
+          assert conn.method == req.method |> to_string() |> String.upcase()
+          assert conn.request_path == path
+
+          conn
+          |> Plug.Conn.prepend_resp_headers([{"set-cookie", "foo=bar; Path=/"}])
+          |> Plug.Conn.prepend_resp_headers([{"set-cookie", "baz=quux; Path=/"}])
+          |> Plug.Conn.send_resp(204, "")
+        end)
+
+        assert {:ok, stream} = ReqClient.request_stream(req)
+
+        assert [
+                 {:status, 204},
+                 {:headers, headers}
+               ] = Enum.to_list(stream)
+
+        set_cookie_headers =
+          Enum.filter(headers, fn
+            {"set-cookie", _} -> true
+            _ -> false
+          end)
+
+        assert set_cookie_headers == [
+                 {"set-cookie", "foo=bar; Path=/"},
+                 {"set-cookie", "baz=quux; Path=/"}
+               ]
+      end
     end
   end
 end
