@@ -118,7 +118,16 @@ if Code.ensure_loaded?(Req) do
     end
 
     defp normalize_headers(headers) do
-      Enum.map(headers, fn {k, v} -> {k, v |> List.wrap() |> Enum.join(", ")} end)
+      Enum.flat_map(headers, fn
+        {"set-cookie", values} when is_list(values) ->
+          Enum.map(values, &{"set-cookie", &1})
+
+        {"set-cookie", value} ->
+          [{"set-cookie", value}]
+
+        {k, v} ->
+          [{k, v |> List.wrap() |> Enum.join(", ")}]
+      end)
     end
   end
 end
