@@ -1,2 +1,3 @@
+# We support Elixir versions with a release date of ~3 years old, along with the earliest compatible OTP release.
 elixir 1.13.0
 erlang 24.0.1
