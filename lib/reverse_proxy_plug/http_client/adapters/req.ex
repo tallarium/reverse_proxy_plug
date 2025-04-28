@@ -94,13 +94,9 @@ if Code.ensure_loaded?(Req) do
       end
 
       defp async_request(req, parent) do
-        fn ->
-          ret = request(req)
-          send(parent, :eof)
-          ret
-        end
-        |> Task.async()
-        |> Task.await()
+        ret = request(req)
+        send(parent, :eof)
+        ret
       end
 
       defp body_stream do
