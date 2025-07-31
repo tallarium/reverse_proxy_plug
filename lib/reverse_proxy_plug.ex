@@ -255,7 +255,8 @@ defmodule ReverseProxyPlug do
 
     proxy_req_host =
       if options[:preserve_host_header] do
-        conn.host
+        {"host", host} = List.keyfind(conn.req_headers, "host", 0, {"host", conn.host})
+        host
       else
         host_header_from_url(url)
       end
