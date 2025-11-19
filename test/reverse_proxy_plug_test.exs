@@ -589,6 +589,42 @@ defmodule ReverseProxyPlugTest do
     assert_header(headers, "host", ["example-custom-port.com"])
   end
 
+  test_stream_and_buffer "preserve host header with port number when preserve_host_header is true" do
+    %{req_function: req_function, opts: opts, get_responder: get_responder} = test_reuse_opts
+    opts_with_preserve = Keyword.merge(opts, preserve_host_header: true)
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(req_function, fn %{headers: headers} = request ->
+      send(self(), {:headers, headers})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/")
+    |> Map.put(:req_headers, [{"host", "original-host.com:8080"}])
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_preserve))
+
+    assert_receive {:headers, headers}
+    assert_header(headers, "host", ["original-host.com:8080"])
+  end
+
+  test_stream_and_buffer "preserve host header without port when preserve_host_header is true and no port in original request" do
+    %{req_function: req_function, opts: opts, get_responder: get_responder} = test_reuse_opts
+    opts_with_preserve = Keyword.merge(opts, preserve_host_header: true)
+
+    ReverseProxyPlug.HTTPClientMock
+    |> expect(req_function, fn %{headers: headers} = request ->
+      send(self(), {:headers, headers})
+      get_responder.(%{}).(request)
+    end)
+
+    conn(:get, "/")
+    |> Map.put(:req_headers, [{"host", "original-host.com"}])
+    |> ReverseProxyPlug.call(ReverseProxyPlug.init(opts_with_preserve))
+
+    assert_receive {:headers, headers}
+    assert_header(headers, "host", ["original-host.com"])
+  end
+
   for timeout_reason <- ReverseProxyPlug.get_timeout_error_reasons() do
     test_stream_and_buffer "returns gateway timeout on #{inspect(timeout_reason)} as error reason" do
       %{req_function: req_function, opts: opts} = test_reuse_opts
