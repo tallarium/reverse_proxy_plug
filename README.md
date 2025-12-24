@@ -11,6 +11,8 @@ Elixir HTTP client libraries. Perfect when you need to transparently proxy
 requests to another service but also need to have full programmatic control
 over the outgoing requests.
 
+> **Note:** For websocket reverse proxying, see [reverse_proxy_plug_websocket](https://hex.pm/packages/reverse_proxy_plug_websocket).
+
 This project grew out of a fork of
 [elixir-reverse-proxy](https://github.com/slogsdon/elixir-reverse-proxy).
 Advantages over the original include more flexible upstreams, zero-delay
