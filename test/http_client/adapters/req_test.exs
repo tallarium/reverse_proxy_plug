@@ -112,5 +112,51 @@ defmodule ReverseProxyPlug.HTTPClient.Adapters.ReqTest do
                ]
       end
     end
+
+    # HEAD requests don't have a body, so test streaming separately
+    for method <- [:get, :post, :put, :patch, :delete, :options] do
+      test "request_stream returns before body completes with method #{method}", %{
+        bypass: bypass
+      } do
+        {:ok, gate} = Agent.start_link(fn -> :closed end)
+
+        Bypass.expect_once(bypass, fn conn ->
+          conn = Plug.Conn.send_chunked(conn, 200)
+          {:ok, conn} = Plug.Conn.chunk(conn, "start")
+
+          poll_until(gate)
+
+          {:ok, conn} = Plug.Conn.chunk(conn, "end")
+          conn
+        end)
+
+        req = %Request{
+          method: unquote(method),
+          options: [finch: FinchTest],
+          url: "http://localhost:8000/stream"
+        }
+
+        # If buffered: deadlock (server waits for gate, request waits for server)
+        # If streaming: returns after headers, before body completes
+        assert {:ok, stream} = ReqClient.request_stream(req)
+
+        # We got here, so request_stream returned while server was blocked
+        Agent.update(gate, fn _ -> :open end)
+
+        results = Enum.to_list(stream)
+        assert [{:status, 200}, {:headers, _}, {:chunk, "start"}, {:chunk, "end"}] = results
+      end
+    end
+  end
+
+  defp poll_until(gate) do
+    case Agent.get(gate, & &1) do
+      :open ->
+        :ok
+
+      :closed ->
+        Process.sleep(5)
+        poll_until(gate)
+    end
   end
 end
